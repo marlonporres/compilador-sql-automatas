@@ -24,6 +24,7 @@ public class ScannerSQL{
         int conlinea=0;
         char chr;
         boolean comentario=false;
+        
         for(int i=0; i<linea.length(); i++){
             chr = linea.charAt(i);
             if(!comentario && linea.charAt(i)=='/' && linea.charAt(i+1)=='*'){
@@ -44,6 +45,7 @@ public class ScannerSQL{
             EstabToken(lexema.toString(), conlinea, linea.length()-(i-1));
         }
     }
+    //actualizado hoy 30 de agosto
 
     public void EstabToken(String lexema, int linea, int columna){
         if(lexema.isEmpty()){
