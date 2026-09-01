@@ -1,4 +1,3 @@
-// ...existing code...
 package lexer;
 
 import java.io.*;
@@ -99,6 +98,9 @@ public class ScannerSQL {
     }
 
     public static void main(String[] args) throws IOException {
+        /*Esta clase solo lo hice para hacer puebas. Este main va en la clase principal
+         *me quede bloqueqdo, para avanzar hace falta la tabla de simbolos
+         */
         Scanner sc = new Scanner(System.in);
         String linea = sc.nextLine();
         ScannerSQL scanner = new ScannerSQL();
