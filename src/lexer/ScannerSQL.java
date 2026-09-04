@@ -1,6 +1,9 @@
 package lexer;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class ScannerSQL {
@@ -152,15 +155,15 @@ public class ScannerSQL {
                         columna++;
                     }
                     continue;
-                case SIMBOLOS.COMA:
+                case ',':
                     token.add(new Token(TipoToken.COMA, ",", fila, columnaInicio)); break;
-                case SIMBOLOS.PUNTO_Y_COMA:
+                case ';':
                     token.add(new Token(TipoToken.PUNTO_Y_COMA, ";", fila, columnaInicio)); break;
-                case SIMBOLOS.PARENTESIS_IZQ:
+                case '(':
                     token.add(new Token(TipoToken.PARENTESIS_IZQ, "(", fila, columnaInicio)); break;
-                case SIMBOLOS.PARENTESIS_DER:
+                case ')':
                     token.add(new Token(TipoToken.PARENTESIS_DER, ")", fila, columnaInicio)); break;
-                case SIMBOLOS.ASTERISCO:
+                case '*':
                     token.add(new Token(TipoToken.ASTERISCO, "*", fila, columnaInicio)); break;
                 default:
                     token.add(new Token(TipoToken.ERROR, String.valueOf(ch), fila, columnaInicio)); break;
@@ -171,18 +174,38 @@ public class ScannerSQL {
         token.add(new Token(TipoToken.FIN_DE_ARCHIVO, "EOF", fila, columna));
     }
 
+    /*
+     * Entrega los tokens reconocidos en la ultima llamada a Analizar.
+     * Lo necesita Main.java para pasarselos a la tabla de simbolos.
+     */
+    public List<Token> getTokens() {
+        return Collections.unmodifiableList(token);
+    }
 
+
+    /*
+     * Prueba aislada del scanner. El main definitivo del proyecto va en Main.java;
+     * este solo sirve para revisar el analizador por separado.
+     *
+     *   java -cp out lexer.ScannerSQL tests/test_ddl.sql
+     *   java -cp out lexer.ScannerSQL              (lee de la entrada estandar)
+     */
     public static void main(String[] args) throws IOException {
-        /*Esta clase solo lo hice para hacer puebas. Este main va en la clase principal
-         *me quede bloqueqdo, para avanzar hace falta la tabla de simbolos
-         */
-        try (Scanner sc = new Scanner(System.in)) {
-            String linea = sc.useDelimiter("\\A").nextLine();
-            ScannerSQL scanner = new ScannerSQL();
-            
-        }catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
+        String entrada;
+
+        if (args.length > 0) {
+            entrada = new String(Files.readAllBytes(Paths.get(args[0])), StandardCharsets.UTF_8);
+        } else {
+            try (Scanner sc = new Scanner(System.in, StandardCharsets.UTF_8)) {
+                entrada = sc.useDelimiter("\\A").hasNext() ? sc.next() : "";
+            }
         }
-        scanner.Analizar(linea);
+
+        ScannerSQL scanner = new ScannerSQL();
+        scanner.Analizar(entrada);
+
+        for (Token t : scanner.getTokens()) {
+            System.out.println(t);
+        }
     }
 }
