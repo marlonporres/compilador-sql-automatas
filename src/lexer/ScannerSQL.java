@@ -7,20 +7,13 @@ import java.nio.file.Paths;
 import java.util.*;
 
 public class ScannerSQL {
-    /*
-     * Catalogo de palabras reservadas.
+    /* Cada palabra reservada apuntando a su token.
+     * Antes era un Set y el tipo salia de TipoToken.valueOf(), pero eso reventaba
+     * cuando la palabra no estaba en el enum.
      *
-     * Antes era un Set<String> y el tipo se sacaba con TipoToken.valueOf(palabra).
-     * Eso reventaba en ejecucion con IllegalArgumentException apenas la entrada
-     * traia una palabra que estaba en el Set pero no en el enum TipoToken.
-     *
-     * Ahora cada palabra se mapea de forma explicita al token que le corresponde,
-     * asi que el catalogo del scanner no puede desalinearse del de TipoToken.
-     *
-     * PENDIENTE DE DECISION DEL EQUIPO: INSERTAR, NULO, PRIMARIA, LLAVE y FORANEA
-     * estaban en la lista vieja pero NO existen en TipoToken. Por ahora se tratan
-     * como identificadores. Si el equipo las quiere como reservadas, primero hay
-     * que agregarlas al enum y despues registrarlas aqui.
+     * OJO equipo: INSERTAR, NULO, PRIMARIA, LLAVE y FORANEA no existen en
+     * TipoToken, por ahora quedan como identificadores. Si las queremos hay que
+     * agregarlas primero al enum.
      */
     private static final Map<String, TipoToken> PALABRAS_RESERVADAS = crearCatalogo();
 
@@ -87,7 +80,9 @@ public class ScannerSQL {
             //se salta comentarios en bloque
             if(ch == '/' && i+1 < linea.length() && linea.charAt(i+1) == '*'){
                 i += 2; // Saltar '/' y '*'
-                while (i < linea.length()&& (linea.charAt(i)=='*' && i+1 < linea.length() && linea.charAt(i+1)=='/')){
+                columna += 2;
+                //avanza mientras NO llegue el cierre
+                while (i < linea.length() && !(linea.charAt(i)=='*' && i+1 < linea.length() && linea.charAt(i+1)=='/')){
                     if(linea.charAt(i) == '\n') {
                         fila++;
                         columna = 1;
@@ -96,27 +91,34 @@ public class ScannerSQL {
                     }
                     i++;
                 }
-                i +=2; //saltar '*' y '/'
+                if (i < linea.length()) {
+                    i += 2; //saltar '*' y '/'
+                    columna += 2;
+                }
                 continue;
             }
             //salta comentario en linea
-            if(ch == '-' && i+1 < linea.length() && linea.charAt(i) == '-'){
+            if(ch == '-' && i+1 < linea.length() && linea.charAt(i+1) == '-'){
                 while (i < linea.length() && linea.charAt(i) != '\n'){
                     i++;
+                    columna++;
                 }
                 continue;
             }
             //Identificadores y palabras reservadas
             if (Character.isLetter(ch) || ch =='_'){
                 int columnaInicio = columna;
+                lexema.setLength(0); //si no se limpia se pegan los lexemas
                 while (i < linea.length() && (Character.isLetterOrDigit(linea.charAt(i)) || linea.charAt(i) == '_')){
                     lexema.append(linea.charAt(i));
                     i++;
                     columna++;
                 }
-                String palabra = lexema.toString().toUpperCase();
+                String original = lexema.toString();
+                String palabra = original.toUpperCase();
                 TipoToken tipo = PALABRAS_RESERVADAS.getOrDefault(palabra, TipoToken.IDENTIFICADOR);
-                token.add(new Token(tipo, palabra, fila, columnaInicio));
+                //las reservadas en mayusculas, pero el identificador como lo escribieron
+                token.add(new Token(tipo, tipo == TipoToken.IDENTIFICADOR ? original : palabra, fila, columnaInicio));
                 continue;
             }
 
@@ -124,15 +126,23 @@ public class ScannerSQL {
             if (Character.isDigit(ch)){
                 StringBuilder numero = new StringBuilder();
                 int columnaInicio = columna;
-                boolean Decimal = false;
+                int puntos = 0;
                 while (i < linea.length() && (Character.isDigit(linea.charAt(i)) || linea.charAt(i) == '.')){
-                    if (linea.charAt(i) == '.')  Decimal = true;
-                    
+                    if (linea.charAt(i) == '.')  puntos++;
+
                     numero.append(linea.charAt(i));
                     i++;
                     columna++;
                 }
-                TipoToken tipo = Decimal ? TipoToken.LITERAL_DECIMAL : TipoToken.LITERAL_ENTERO;
+                //un numero solo puede llevar un punto y no puede terminar en punto
+                TipoToken tipo;
+                if (puntos > 1 || numero.charAt(numero.length()-1) == '.') {
+                    tipo = TipoToken.ERROR;
+                } else if (puntos == 1) {
+                    tipo = TipoToken.LITERAL_DECIMAL;
+                } else {
+                    tipo = TipoToken.LITERAL_ENTERO;
+                }
                 token.add(new Token(tipo, numero.toString(), fila, columnaInicio));
                 continue;
             }
@@ -168,6 +178,18 @@ public class ScannerSQL {
                         columna += 2;
                     } else {
                         token.add(new Token(TipoToken.OP_ASIGNACION, "=", fila, columnaInicio));
+                        i++;
+                        columna++;
+                    }
+                    continue;
+                case '!':
+                    //faltaba !=, solo estaba <>
+                    if(i+1<linea.length() && linea.charAt(i+1) == '='){
+                        token.add(new Token(TipoToken.OP_DIFERENTE, "!=", fila, columnaInicio));
+                        i += 2;
+                        columna += 2;
+                    } else {
+                        token.add(new Token(TipoToken.ERROR, "!", fila, columnaInicio));
                         i++;
                         columna++;
                     }
@@ -217,21 +239,15 @@ public class ScannerSQL {
         token.add(new Token(TipoToken.FIN_DE_ARCHIVO, "EOF", fila, columna));
     }
 
-    /*
-     * Entrega los tokens reconocidos en la ultima llamada a Analizar.
-     * Lo necesita Main.java para pasarselos a la tabla de simbolos.
-     */
+    //Los tokens de la ultima vez que se llamo Analizar. Los necesita el Main
+    //para pasarselos a la tabla de simbolos.
     public List<Token> getTokens() {
-        return Collections.unmodifiableList(token);
+        return new ArrayList<>(token);
     }
 
 
-    /*
-     * Prueba aislada del scanner. El main definitivo del proyecto va en Main.java;
-     * este solo sirve para revisar el analizador por separado.
-     *
+    /* Solo para probar el scanner por separado, el main de verdad va en Main.java
      *   java -cp out lexer.ScannerSQL tests/test_ddl.sql
-     *   java -cp out lexer.ScannerSQL              (lee de la entrada estandar)
      */
     public static void main(String[] args) throws IOException {
         String entrada;
