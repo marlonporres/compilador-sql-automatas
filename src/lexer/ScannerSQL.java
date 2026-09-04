@@ -7,15 +7,58 @@ import java.nio.file.Paths;
 import java.util.*;
 
 public class ScannerSQL {
-    private static final Set<String> PALABRAS_RESERVADAS = new HashSet<>(Arrays.asList(
-        "SELECCIONAR", "INSERTAR", "ACTUALIZAR", "BORRAR", "CREAR", "ALTERAR", "ELIMINAR",
-        "TRUNCAR", "RENOMBRAR", "TABLA", "EN", "VALORES", "DESDE", "DONDE",
-        "ASIGNAR", "Y", "O", "NO", "NULO", "PRIMARIA", "LLAVE", "FORANEA"
-    ));
+    /*
+     * Catalogo de palabras reservadas.
+     *
+     * Antes era un Set<String> y el tipo se sacaba con TipoToken.valueOf(palabra).
+     * Eso reventaba en ejecucion con IllegalArgumentException apenas la entrada
+     * traia una palabra que estaba en el Set pero no en el enum TipoToken.
+     *
+     * Ahora cada palabra se mapea de forma explicita al token que le corresponde,
+     * asi que el catalogo del scanner no puede desalinearse del de TipoToken.
+     *
+     * PENDIENTE DE DECISION DEL EQUIPO: INSERTAR, NULO, PRIMARIA, LLAVE y FORANEA
+     * estaban en la lista vieja pero NO existen en TipoToken. Por ahora se tratan
+     * como identificadores. Si el equipo las quiere como reservadas, primero hay
+     * que agregarlas al enum y despues registrarlas aqui.
+     */
+    private static final Map<String, TipoToken> PALABRAS_RESERVADAS = crearCatalogo();
 
-    private static final Set<Character> SIMBOLOS = new HashSet<>(Arrays.asList(
-        '(', ')', ',', ';', '=', '*', '<', '>', '+', '-', '/', '.', ':'
-    ));
+    private static Map<String, TipoToken> crearCatalogo() {
+        Map<String, TipoToken> catalogo = new HashMap<>();
+
+        // DDL
+        catalogo.put("CREAR", TipoToken.CREAR);
+        catalogo.put("TABLA", TipoToken.TABLA);
+        catalogo.put("ALTERAR", TipoToken.ALTERAR);
+        catalogo.put("ELIMINAR", TipoToken.ELIMINAR);
+        catalogo.put("TRUNCAR", TipoToken.TRUNCAR);
+        catalogo.put("RENOMBRAR", TipoToken.RENOMBRAR);
+
+        // DML
+        catalogo.put("SELECCIONAR", TipoToken.SELECCIONAR);
+        catalogo.put("ACTUALIZAR", TipoToken.ACTUALIZAR);
+        catalogo.put("DESDE", TipoToken.DESDE);
+        catalogo.put("DONDE", TipoToken.DONDE);
+        catalogo.put("EN", TipoToken.EN);
+        catalogo.put("VALORES", TipoToken.VALORES);
+        catalogo.put("ASIGNAR", TipoToken.ASIGNAR);
+        catalogo.put("BORRAR", TipoToken.BORRAR);
+
+        // Tipos de dato
+        catalogo.put("ENTERO", TipoToken.TIPO_ENTERO);
+        catalogo.put("TEXTO", TipoToken.TIPO_TEXTO);
+        catalogo.put("FECHA", TipoToken.TIPO_FECHA);
+        catalogo.put("DECIMAL", TipoToken.TIPO_DECIMAL);
+        catalogo.put("BOOLEANO", TipoToken.TIPO_BOOLEANO);
+
+        // Operadores logicos
+        catalogo.put("Y", TipoToken.OP_Y);
+        catalogo.put("O", TipoToken.OP_O);
+        catalogo.put("NO", TipoToken.OP_NO);
+
+        return Collections.unmodifiableMap(catalogo);
+    }
 
     private final List<Token> token = new ArrayList<>();
     //private TipoToken tipo;
@@ -72,7 +115,7 @@ public class ScannerSQL {
                     columna++;
                 }
                 String palabra = lexema.toString().toUpperCase();
-                TipoToken tipo = PALABRAS_RESERVADAS.contains(palabra) ? TipoToken.valueOf(palabra) : TipoToken.IDENTIFICADOR;
+                TipoToken tipo = PALABRAS_RESERVADAS.getOrDefault(palabra, TipoToken.IDENTIFICADOR);
                 token.add(new Token(tipo, palabra, fila, columnaInicio));
                 continue;
             }
