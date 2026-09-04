@@ -1,37 +1,37 @@
 package lexer;
 
-public class Token{
+public class Token {
     private final TipoToken tipo;
     private final String lexema;
     private final int linea;
     private final int columna;
 
-    public Token(TipoToken tipo, String lexema, int linea, int columna){
+    public Token(TipoToken tipo, String lexema, int linea, int columna) {
         this.tipo = tipo;
         this.lexema = lexema;
         this.linea = linea;
         this.columna = columna;
     }
 
-    public TipoToken getTipo(){
+    public TipoToken getTipo() {
         return tipo;
     }
 
-    public String getLexema(){
+    public String getLexema() {
         return lexema;
     }
 
-    public int getlinea(){
+    public int getlinea() {
         return linea;
     }
 
-    public int getcolumna(){
+    public int getcolumna() {
         return columna;
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return String.format("<%-15s | Lexema: %-15s | L:%-3d C:%-3d>", tipo, "\"" + lexema + "\"", linea, columna);
     }
-    
+
 }
