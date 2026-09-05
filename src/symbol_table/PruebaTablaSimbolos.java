@@ -37,6 +37,9 @@ public class PruebaTablaSimbolos {
 
         System.out.println();
         System.out.println("Pruebas: " + total + "   Fallidas: " + fallidas);
+        if (fallidas > 0) {
+            System.exit(1);
+        }
     }
 
     private static void tablaVacia() {
@@ -197,8 +200,8 @@ public class PruebaTablaSimbolos {
         TablaSimbolos tabla = new TablaSimbolos();
         tabla.registrar(id("usuarios", 1, 13));
         tabla.registrar(id("id", 1, 23));
-        tabla.registrar(id("correo", 1, 35));
-        tabla.registrar(id("edad", 1, 49));
+        tabla.registrar(id("correo", 1, 34));
+        tabla.registrar(id("edad", 1, 48));
         tabla.registrar(id("correo", 2, 13));
         tabla.registrar(id("usuarios", 2, 26));
         tabla.registrar(id("edad", 2, 41));

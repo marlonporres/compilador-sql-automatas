@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -8,6 +9,7 @@ import lexer.ScannerSQL;
 import lexer.Token;
 import symbol_table.TablaSimbolos;
 
+/** Lee el archivo UTF-8 y conecta el scanner con la tabla, sin análisis sintáctico. */
 public class Main {
 
     public static void main(String[] args) {
@@ -19,12 +21,13 @@ public class Main {
         System.out.println();
 
         // Verificar que se haya indicado un archivo
-        if (args.length == 0) {
+        if (args.length != 1) {
             System.out.println("Uso:");
             System.out.println("java -cp out Main <archivo.sql>");
             System.out.println();
             System.out.println("Ejemplo:");
             System.out.println("java -cp out Main tests/test_ddl.sql");
+            System.exit(2);
             return;
         }
 
@@ -76,6 +79,7 @@ public class Main {
             // ==========================================
             TablaSimbolos tabla = new TablaSimbolos();
 
+            // Se registran solo identificadores; errores, reservadas y literales quedan fuera.
             tabla.registrarTodos(tokens);
 
             // ==========================================
@@ -99,16 +103,21 @@ public class Main {
             }
 
             System.out.println("==============================================");
+            if (errores > 0) {
+                System.exit(1);
+            }
 
-        } catch (IOException e) {
+        } catch (IOException | InvalidPathException e) {
 
             System.out.println("ERROR AL LEER EL ARCHIVO:");
             System.out.println(e.getMessage());
+            System.exit(2);
 
         } catch (Exception e) {
 
             System.out.println("ERROR DURANTE EL ANALISIS:");
             System.out.println(e.getMessage());
+            System.exit(2);
         }
     }
 }

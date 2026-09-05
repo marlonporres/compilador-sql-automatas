@@ -1,5 +1,6 @@
 package lexer;
 
+/** Resultado léxico inmutable con la posición inicial del lexema, desde línea y columna 1. */
 public class Token {
     private final TipoToken tipo;
     private final String lexema;

@@ -29,7 +29,8 @@ preguntas:
 | `src/symbol_table/Simbolo.java` | Una entrada de la tabla: un identificador y sus atributos. |
 | `src/symbol_table/TablaSimbolos.java` | La estructura: inserción, búsqueda, existencia, duplicados, impresión. |
 | `src/symbol_table/CategoriaSimbolo.java` | Enum `TABLA`, `COLUMNA`, `DESCONOCIDA`. |
-| `src/symbol_table/PruebaTablaSimbolos.java` | Pruebas aisladas del módulo (55 verificaciones). |
+| `src/symbol_table/PruebaTablaSimbolos.java` | Pruebas aisladas del módulo (50 verificaciones). |
+| `tests/PruebaFase1.java` | Regresiones del scanner y de su integración real con la tabla y Main. |
 
 ---
 
@@ -48,7 +49,7 @@ preguntas:
 
 SQL no distingue mayúsculas en los identificadores: `usuarios`, `Usuarios` y
 `USUARIOS` nombran la misma tabla. Por eso la identidad del símbolo es
-`Simbolo.normalizar(nombre)` (recorte de espacios + mayúsculas), mientras que el
+`Simbolo.normalizar(nombre)` (recorte de espacios + mayúsculas con `Locale.ROOT`), mientras que el
 campo `nombre` conserva el **lexema original** tal como se escribió la primera
 vez. Así la prevención de duplicados es correcta sin perder el texto real de la
 entrada.
@@ -104,7 +105,7 @@ Fase 2 pueda determinarlos.
 | `existe(String nombre)` | `true` / `false` (insensible a mayúsculas) |
 | `tamano()` | número de símbolos |
 | `estaVacia()` | `true` / `false` |
-| `obtenerTodos()` | lista de solo lectura, en orden de aparición |
+| `obtenerTodos()` | copia de la lista, en orden de aparición; los objetos `Simbolo` son compartidos |
 
 ### Modificación
 `eliminar(String)`, `actualizarTipoDato(String, String)`,
@@ -139,7 +140,7 @@ La prueba **no depende del scanner**: construye los tokens a mano, como si
 vinieran del analizador léxico.
 
 ```bash
-javac -encoding UTF-8 -d out src/lexer/TipoToken.java src/lexer/Token.java src/symbol_table/*.java
+javac --release 21 -encoding UTF-8 -d out src/lexer/TipoToken.java src/lexer/Token.java src/symbol_table/*.java
 ```
 
 ```bash
@@ -150,10 +151,11 @@ Cubre: tabla vacía, inserción, rechazo de duplicados, duplicados con distinta
 capitalización, búsqueda y existencia, conteo de apariciones, conservación de la
 primera posición, filtrado de no-identificadores, recorrido de una lista completa
 de tokens, orden de aparición, ids correlativos, actualización de categoría y
-tipo de dato, eliminación, limpieza, entradas nulas e inmutabilidad de la lista
-devuelta. El proceso termina con código de salida `1` si algo falla.
+tipo de dato, eliminación, limpieza y entradas nulas. El proceso termina con
+código de salida `1` si algo falla. `PruebaFase1` verifica además que modificar
+la copia de la lista no borra entradas de la tabla.
 
-**Estado actual: 55 verificaciones, 0 fallidas.**
+**Estado actual del módulo aislado: 50 verificaciones, 0 fallidas.**
 
 ---
 
@@ -161,10 +163,10 @@ devuelta. El proceso termina con código de salida `1` si algo falla.
 
 ```java
 ScannerSQL scanner = new ScannerSQL();
-scanner.Analizar(contenidoDelArchivo);
+scanner.analizar(contenidoDelArchivo);
 
 TablaSimbolos tabla = new TablaSimbolos();
-tabla.registrarTodos(scanner.getTokens());   // requiere un getter de tokens en el scanner
+tabla.registrarTodos(scanner.getTokens());
 tabla.imprimir();
 ```
 
@@ -178,9 +180,10 @@ for (Token t : tokens) {
 tabla.imprimir();
 ```
 
-**Requisito pendiente del lado del scanner:** `ScannerSQL` mantiene su lista de
-tokens en un campo privado sin getter. Para integrar hace falta exponerla
-(por ejemplo `public List<Token> getTokens()`).
+La integración ya está implementada en `Main`. `ScannerSQL.getTokens()` devuelve
+una copia de los tokens y cada llamada a `analizar` reinicia la lista del scanner.
+La posición de `Token` se consulta con los métodos existentes `getlinea()` y
+`getcolumna()`; `Simbolo` expone `getLinea()` y `getColumna()`.
 
 ---
 
@@ -193,7 +196,10 @@ CREAR TABLA usuarios (id ENTERO, correo TEXTO, edad ENTERO);
 SELECCIONAR correo DESDE usuarios DONDE edad > 18;
 ```
 
-Tabla resultante:
+La prueba aislada `ejemploDeSalida()` construye estos tokens y asigna las categorías
+y tipos manualmente mediante los métodos de actualización, para demostrar la API.
+`Main` no deduce esos atributos: su salida mantiene `DESCONOCIDA` / `DESCONOCIDO`.
+Salida del ejemplo aislado:
 
 ```
 +-----+----------------------+---------------+--------------+--------------+-------+-------+-------------+
@@ -201,8 +207,8 @@ Tabla resultante:
 +-----+----------------------+---------------+--------------+--------------+-------+-------+-------------+
 | 1   | usuarios             | IDENTIFICADOR | TABLA        | DESCONOCIDO  | 1     | 13    | 2           |
 | 2   | id                   | IDENTIFICADOR | COLUMNA      | ENTERO       | 1     | 23    | 1           |
-| 3   | correo               | IDENTIFICADOR | COLUMNA      | TEXTO        | 1     | 35    | 2           |
-| 4   | edad                 | IDENTIFICADOR | COLUMNA      | ENTERO       | 1     | 49    | 2           |
+| 3   | correo               | IDENTIFICADOR | COLUMNA      | TEXTO        | 1     | 34    | 2           |
+| 4   | edad                 | IDENTIFICADOR | COLUMNA      | ENTERO       | 1     | 48    | 2           |
 +-----+----------------------+---------------+--------------+--------------+-------+-------+-------------+
 Total de símbolos: 4
 ```
