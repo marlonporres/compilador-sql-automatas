@@ -1,5 +1,7 @@
 package symbol_table;
 
+import java.util.Locale;
+
 import lexer.TipoToken;
 import lexer.Token;
 
@@ -38,9 +40,9 @@ public class Simbolo {
         this(id, token.getLexema(), token.getTipo(), token.getlinea(), token.getcolumna());
     }
 
-    //SQL no distingue mayusculas, entonces usuarios y USUARIOS son el mismo.
+    // La identidad del símbolo no debe depender de la configuración regional del equipo.
     public static String normalizar(String nombre) {
-        return nombre == null ? null : nombre.trim().toUpperCase();
+        return nombre == null ? null : nombre.trim().toUpperCase(Locale.ROOT);
     }
 
     public int getId() {
@@ -83,7 +85,7 @@ public class Simbolo {
         if (tipoDato == null || tipoDato.isEmpty()) {
             this.tipoDato = TIPO_DATO_DESCONOCIDO;
         } else {
-            this.tipoDato = tipoDato.trim().toUpperCase();
+            this.tipoDato = tipoDato.trim().toUpperCase(Locale.ROOT);
         }
     }
 

@@ -29,12 +29,13 @@ ELIMINAR TABLA productos;
 -- PRUEBAS DE ERRORES LEXICOS
 -- ==========================================
 
+CREAR TABLA otra_prueba (
+    dato @
+);
+
+-- La cadena sin cerrar queda al final: consume hasta EOF.
 CREAR TABLA prueba (
     numero 85.5.2,
     simbolo !,
     texto 'cadena sin cerrar
-);
-
-CREAR TABLA otra_prueba (
-    dato @
 );

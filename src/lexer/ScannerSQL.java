@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
+/** Scanner manual de Fase 1: produce tokens y posiciones, sin interpretar sentencias. */
 public class ScannerSQL {
     /* Catalogo de palabras reservadas -> token concreto. Usar Map evita
      * dependencias peligrosas con TipoToken.valueOf() cuando la palabra
@@ -23,9 +24,9 @@ public class ScannerSQL {
         catalogo.put("ELIMINAR", TipoToken.ELIMINAR);
         catalogo.put("TRUNCAR", TipoToken.TRUNCAR);
         catalogo.put("RENOMBRAR", TipoToken.RENOMBRAR);
-        catalogo.put("INSERTAR", TipoToken.INSERTAR);
 
         // DML
+        catalogo.put("INSERTAR", TipoToken.INSERTAR);
         catalogo.put("SELECCIONAR", TipoToken.SELECCIONAR);
         catalogo.put("ACTUALIZAR", TipoToken.ACTUALIZAR);
         catalogo.put("DESDE", TipoToken.DESDE);
@@ -63,39 +64,46 @@ public class ScannerSQL {
 
             // Saltar espacios y saltos de línea
             if (Character.isWhitespace(ch)) {
-                if (ch == '\n') {
+                int salto = longitudSalto(entrada, i);
+                if (salto > 0) {
                     fila++;
                     columna = 1;
                 } else {
                     columna++;
                 }
-                i++;
+                i += salto > 0 ? salto : 1;
                 continue;
             }
 
             // Comentarios de bloque /* ... */
             if (ch == '/' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '*') {
+                int inicio = i;
+                int filaInicio = fila;
+                int colInicio = columna;
                 i += 2;
                 columna += 2; 
                 while (i < entrada.length() && !(entrada.charAt(i) == '*' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '/')) {
-                    if (entrada.charAt(i) == '\n') {
+                    int salto = longitudSalto(entrada, i);
+                    if (salto > 0) {
                         fila++;
                         columna = 1;
                     } else {
                         columna++;
                     }
-                    i++;
+                    i += salto > 0 ? salto : 1;
                 }
                 if (i < entrada.length()) {
                     i += 2; // cerrar comentario
                     columna += 2;
+                } else {
+                    tokens.add(new Token(TipoToken.ERROR, entrada.substring(inicio), filaInicio, colInicio));
                 }
                 continue;
             }
 
             // Comentario en linea -- ...
             if (ch == '-' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '-') {
-                while (i < entrada.length() && entrada.charAt(i) != '\n') {
+                while (i < entrada.length() && longitudSalto(entrada, i) == 0) {
                     i++;
                     columna++;
                 }
@@ -106,13 +114,14 @@ public class ScannerSQL {
             if (Character.isLetter(ch) || ch == '_') {
                 StringBuilder lexema = new StringBuilder();
                 int colInicio = columna;
-                while (i < entrada.length() && (Character.isLetterOrDigit(entrada.charAt(i)) || entrada.charAt(i) == '_')) {
+                while (i < entrada.length() && (Character.isLetter(entrada.charAt(i))
+                        || esDigito(entrada.charAt(i)) || entrada.charAt(i) == '_')) {
                     lexema.append(entrada.charAt(i));
                     i++;
                     columna++;
                 }
                 String original = lexema.toString();
-                String palabra = original.toUpperCase();
+                String palabra = original.toUpperCase(Locale.ROOT);
                 TipoToken tipo = PALABRAS_RESERVADAS.getOrDefault(palabra, TipoToken.IDENTIFICADOR);
                 // Reservadas en mayúsculas, identificadores tal como fueron escritos
                 tokens.add(new Token(tipo, tipo == TipoToken.IDENTIFICADOR ? original : palabra, fila, colInicio));
@@ -120,20 +129,18 @@ public class ScannerSQL {
             }
 
             // Números enteros y decimales (validación de puntos)
-            if (Character.isDigit(ch)) {
+            if (esDigito(ch)) {
                 StringBuilder numero = new StringBuilder();
                 int colInicio = columna;
                 int puntos = 0;
-                while (i < entrada.length() && (Character.isDigit(entrada.charAt(i)) || entrada.charAt(i) == '.')) {
+                while (i < entrada.length() && (esDigito(entrada.charAt(i)) || entrada.charAt(i) == '.')) {
                     if (entrada.charAt(i) == '.') puntos++;
                     numero.append(entrada.charAt(i));
                     i++;
                     columna++;
                 }
                 TipoToken tipo;
-                if (numero.length() == 0) {
-                    tipo = TipoToken.ERROR;
-                } else if (puntos > 1 || numero.charAt(numero.length() - 1) == '.') {
+                if (puntos > 1 || numero.charAt(numero.length() - 1) == '.') {
                     tipo = TipoToken.ERROR;
                 } else if (puntos == 1) {
                     tipo = TipoToken.LITERAL_DECIMAL;
@@ -147,20 +154,29 @@ public class ScannerSQL {
             // Literales de cadena (sin incluir apóstrofes en el lexema)
             if (ch == '\'') {
                 StringBuilder cadena = new StringBuilder();
+                int filaInicio = fila;
                 int colInicio = columna;
                 i++; // Saltar el primer apóstrofe
                 columna++;
                 while (i < entrada.length() && entrada.charAt(i) != '\'') {
-                    cadena.append(entrada.charAt(i));
-                    i++;
-                    columna++;
+                    int salto = longitudSalto(entrada, i);
+                    if (salto > 0) {
+                        cadena.append(entrada, i, i + salto);
+                        i += salto;
+                        fila++;
+                        columna = 1;
+                    } else {
+                        cadena.append(entrada.charAt(i));
+                        i++;
+                        columna++;
+                    }
                 }
                 if (i < entrada.length() && entrada.charAt(i) == '\'') {
                     i++; // Saltar el cierre
                     columna++;
-                    tokens.add(new Token(TipoToken.LITERAL_CADENA, cadena.toString(), fila, colInicio));
+                    tokens.add(new Token(TipoToken.LITERAL_CADENA, cadena.toString(), filaInicio, colInicio));
                 } else {
-                    tokens.add(new Token(TipoToken.ERROR, cadena.toString(), fila, colInicio));
+                    tokens.add(new Token(TipoToken.ERROR, cadena.toString(), filaInicio, colInicio));
                 }
                 continue;
             }
@@ -170,7 +186,8 @@ public class ScannerSQL {
             switch (ch) {
                 case '=':
                     if (i + 1 < entrada.length() && entrada.charAt(i + 1) == '=') {
-                        tokens.add(new Token(TipoToken.OP_IGUAL, "==", fila, colInicio));
+                        // El catálogo define únicamente '='; no aceptar '==' como igualdad.
+                        tokens.add(new Token(TipoToken.ERROR, "==", fila, colInicio));
                         i += 2; columna += 2;
                     } else {
                         tokens.add(new Token(TipoToken.OP_IGUAL, "=", fila, colInicio));
@@ -227,6 +244,20 @@ public class ScannerSQL {
         tokens.add(new Token(TipoToken.FIN_DE_ARCHIVO, "EOF", fila, columna));
     }
 
+    // CRLF cuenta como un solo salto; se conservan los caracteres originales del lexema.
+    private static int longitudSalto(String entrada, int i) {
+        char ch = entrada.charAt(i);
+        if (ch == '\r') {
+            return i + 1 < entrada.length() && entrada.charAt(i + 1) == '\n' ? 2 : 1;
+        }
+        return ch == '\n' ? 1 : 0;
+    }
+
+    private static boolean esDigito(char ch) {
+        return ch >= '0' && ch <= '9';
+    }
+
+    // Main recibe una copia: recorrer o modificar esa lista no altera el scanner.
     public List<Token> getTokens() {
         return new ArrayList<>(tokens);
     }

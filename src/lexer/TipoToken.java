@@ -1,5 +1,6 @@
 package lexer;
 
+/** Catálogo de tokens compartido por el scanner y la tabla de símbolos de Fase 1. */
 public enum TipoToken {
     // DDL
     CREAR, TABLA, ALTERAR, ELIMINAR, TRUNCAR, RENOMBRAR,
