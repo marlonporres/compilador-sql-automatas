@@ -23,6 +23,7 @@ public class ScannerSQL {
         catalogo.put("ELIMINAR", TipoToken.ELIMINAR);
         catalogo.put("TRUNCAR", TipoToken.TRUNCAR);
         catalogo.put("RENOMBRAR", TipoToken.RENOMBRAR);
+        catalogo.put("INSERTAR", TipoToken.INSERTAR);
 
         // DML
         catalogo.put("SELECCIONAR", TipoToken.SELECCIONAR);
@@ -75,7 +76,7 @@ public class ScannerSQL {
             // Comentarios de bloque /* ... */
             if (ch == '/' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '*') {
                 i += 2;
-                columna += 2;
+                columna += 2; 
                 while (i < entrada.length() && !(entrada.charAt(i) == '*' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '/')) {
                     if (entrada.charAt(i) == '\n') {
                         fila++;
@@ -172,7 +173,7 @@ public class ScannerSQL {
                         tokens.add(new Token(TipoToken.OP_IGUAL, "==", fila, colInicio));
                         i += 2; columna += 2;
                     } else {
-                        tokens.add(new Token(TipoToken.OP_ASIGNACION, "=", fila, colInicio));
+                        tokens.add(new Token(TipoToken.OP_IGUAL, "=", fila, colInicio));
                         i++; columna++;
                     }
                     continue;
