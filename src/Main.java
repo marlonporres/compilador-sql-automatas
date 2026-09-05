@@ -46,7 +46,7 @@ public class Main {
             // 2. Crear y ejecutar ScannerSQL
             // ==========================================
             ScannerSQL scanner = new ScannerSQL();
-            scanner.Analizar(entrada);
+            scanner.analizar(entrada);
 
             // Obtener los tokens generados
             List<Token> tokens = scanner.getTokens();
