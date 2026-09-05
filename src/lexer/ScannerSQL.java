@@ -1,13 +1,53 @@
 package lexer;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class ScannerSQL {
-    private static final Set<String> PALABRAS_RESERVADAS = new HashSet<>(Arrays.asList(
-        "SELECCIONAR", "INSERTAR", "ACTUALIZAR", "BORRAR", "CREAR", "ALTERAR", "ELIMINAR",
-        "TRUNCAR", "RENOMBRAR", "TABLA", "EN", "VALORES", "DESDE", "DONDE",
-        "ASIGNAR", "Y", "O", "NO", "NULO", "PRIMARIA", "LLAVE", "FORANEA"
-    ));
+    /* Catalogo de palabras reservadas -> token concreto. Usar Map evita
+     * dependencias peligrosas con TipoToken.valueOf() cuando la palabra
+     * no existe en el enum.
+     */
+    private static final Map<String, TipoToken> PALABRAS_RESERVADAS = crearCatalogo();
+
+    private static Map<String, TipoToken> crearCatalogo() {
+        Map<String, TipoToken> catalogo = new HashMap<>();
+
+        // DDL
+        catalogo.put("CREAR", TipoToken.CREAR);
+        catalogo.put("TABLA", TipoToken.TABLA);
+        catalogo.put("ALTERAR", TipoToken.ALTERAR);
+        catalogo.put("ELIMINAR", TipoToken.ELIMINAR);
+        catalogo.put("TRUNCAR", TipoToken.TRUNCAR);
+        catalogo.put("RENOMBRAR", TipoToken.RENOMBRAR);
+
+        // DML
+        catalogo.put("SELECCIONAR", TipoToken.SELECCIONAR);
+        catalogo.put("ACTUALIZAR", TipoToken.ACTUALIZAR);
+        catalogo.put("DESDE", TipoToken.DESDE);
+        catalogo.put("DONDE", TipoToken.DONDE);
+        catalogo.put("EN", TipoToken.EN);
+        catalogo.put("VALORES", TipoToken.VALORES);
+        catalogo.put("ASIGNAR", TipoToken.ASIGNAR);
+        catalogo.put("BORRAR", TipoToken.BORRAR);
+
+        // Tipos de dato
+        catalogo.put("ENTERO", TipoToken.TIPO_ENTERO);
+        catalogo.put("TEXTO", TipoToken.TIPO_TEXTO);
+        catalogo.put("FECHA", TipoToken.TIPO_FECHA);
+        catalogo.put("DECIMAL", TipoToken.TIPO_DECIMAL);
+        catalogo.put("BOOLEANO", TipoToken.TIPO_BOOLEANO);
+
+        // Operadores logicos
+        catalogo.put("Y", TipoToken.OP_Y);
+        catalogo.put("O", TipoToken.OP_O);
+        catalogo.put("NO", TipoToken.OP_NO);
+
+        return Collections.unmodifiableMap(catalogo);
+    }
 
     private final List<Token> tokens = new ArrayList<>();
 
@@ -35,6 +75,7 @@ public class ScannerSQL {
             // Comentarios de bloque /* ... */
             if (ch == '/' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '*') {
                 i += 2;
+                columna += 2;
                 while (i < entrada.length() && !(entrada.charAt(i) == '*' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '/')) {
                     if (entrada.charAt(i) == '\n') {
                         fila++;
@@ -44,7 +85,19 @@ public class ScannerSQL {
                     }
                     i++;
                 }
-                i += 2; // cerrar comentario
+                if (i < entrada.length()) {
+                    i += 2; // cerrar comentario
+                    columna += 2;
+                }
+                continue;
+            }
+
+            // Comentario en linea -- ...
+            if (ch == '-' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '-') {
+                while (i < entrada.length() && entrada.charAt(i) != '\n') {
+                    i++;
+                    columna++;
+                }
                 continue;
             }
 
@@ -57,43 +110,52 @@ public class ScannerSQL {
                     i++;
                     columna++;
                 }
-                String palabra = lexema.toString().toUpperCase();
-                TipoToken tipo = PALABRAS_RESERVADAS.contains(palabra) ? TipoToken.valueOf(palabra) : TipoToken.IDENTIFICADOR;
-                tokens.add(new Token(tipo, palabra, fila, colInicio));
+                String original = lexema.toString();
+                String palabra = original.toUpperCase();
+                TipoToken tipo = PALABRAS_RESERVADAS.getOrDefault(palabra, TipoToken.IDENTIFICADOR);
+                // Reservadas en mayúsculas, identificadores tal como fueron escritos
+                tokens.add(new Token(tipo, tipo == TipoToken.IDENTIFICADOR ? original : palabra, fila, colInicio));
                 continue;
             }
 
-            // Números enteros y decimales
+            // Números enteros y decimales (validación de puntos)
             if (Character.isDigit(ch)) {
                 StringBuilder numero = new StringBuilder();
                 int colInicio = columna;
-                boolean esDecimal = false;
+                int puntos = 0;
                 while (i < entrada.length() && (Character.isDigit(entrada.charAt(i)) || entrada.charAt(i) == '.')) {
-                    if (entrada.charAt(i) == '.') esDecimal = true;
+                    if (entrada.charAt(i) == '.') puntos++;
                     numero.append(entrada.charAt(i));
                     i++;
                     columna++;
                 }
-                TipoToken tipo = esDecimal ? TipoToken.LITERAL_DECIMAL : TipoToken.LITERAL_ENTERO;
+                TipoToken tipo;
+                if (numero.length() == 0) {
+                    tipo = TipoToken.ERROR;
+                } else if (puntos > 1 || numero.charAt(numero.length() - 1) == '.') {
+                    tipo = TipoToken.ERROR;
+                } else if (puntos == 1) {
+                    tipo = TipoToken.LITERAL_DECIMAL;
+                } else {
+                    tipo = TipoToken.LITERAL_ENTERO;
+                }
                 tokens.add(new Token(tipo, numero.toString(), fila, colInicio));
                 continue;
             }
 
-            // Literales de cadena
+            // Literales de cadena (sin incluir apóstrofes en el lexema)
             if (ch == '\'') {
                 StringBuilder cadena = new StringBuilder();
                 int colInicio = columna;
-                cadena.append(ch);
-                i++;
+                i++; // Saltar el primer apóstrofe
                 columna++;
                 while (i < entrada.length() && entrada.charAt(i) != '\'') {
                     cadena.append(entrada.charAt(i));
                     i++;
                     columna++;
                 }
-                if (i < entrada.length()) {
-                    cadena.append('\'');
-                    i++;
+                if (i < entrada.length() && entrada.charAt(i) == '\'') {
+                    i++; // Saltar el cierre
                     columna++;
                     tokens.add(new Token(TipoToken.LITERAL_CADENA, cadena.toString(), fila, colInicio));
                 } else {
@@ -111,6 +173,15 @@ public class ScannerSQL {
                         i += 2; columna += 2;
                     } else {
                         tokens.add(new Token(TipoToken.OP_ASIGNACION, "=", fila, colInicio));
+                        i++; columna++;
+                    }
+                    continue;
+                case '!':
+                    if (i + 1 < entrada.length() && entrada.charAt(i + 1) == '=') {
+                        tokens.add(new Token(TipoToken.OP_DIFERENTE, "!=", fila, colInicio));
+                        i += 2; columna += 2;
+                    } else {
+                        tokens.add(new Token(TipoToken.ERROR, "!", fila, colInicio));
                         i++; columna++;
                     }
                     continue;
@@ -156,7 +227,7 @@ public class ScannerSQL {
     }
 
     public List<Token> getTokens() {
-        return tokens;
+        return new ArrayList<>(tokens);
     }
 
     public void mostrarTokens() {
@@ -165,12 +236,20 @@ public class ScannerSQL {
         }
     }
 
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        System.out.println("Ingrese su script SQL:");
-        String entrada = sc.useDelimiter("\\A").next();
+    public static void main(String[] args) throws IOException {
+        String entrada;
+
+        if (args.length > 0) {
+            entrada = new String(Files.readAllBytes(Paths.get(args[0])), StandardCharsets.UTF_8);
+        } else {
+            try (Scanner sc = new Scanner(System.in, StandardCharsets.UTF_8)) {
+                entrada = sc.useDelimiter("\\A").hasNext() ? sc.next() : "";
+            }
+        }
+
         ScannerSQL scanner = new ScannerSQL();
         scanner.analizar(entrada);
         scanner.mostrarTokens();
     }
 }
+
