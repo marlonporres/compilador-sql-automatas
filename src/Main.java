@@ -7,6 +7,7 @@ import java.util.List;
 
 import lexer.ScannerSQL;
 import lexer.Token;
+import lexer.AnalizadorDML;
 import symbol_table.TablaSimbolos;
 
 /** Lee el archivo UTF-8 y conecta el scanner con la tabla, sin análisis sintáctico. */
@@ -82,11 +83,23 @@ public class Main {
             // Se registran solo identificadores; errores, reservadas y literales quedan fuera.
             tabla.registrarTodos(tokens);
 
-            // ==========================================
-            // 5. Mostrar tabla de simbolos
-            // ==========================================
             System.out.println("---------- TABLA DE SIMBOLOS ----------");
             tabla.imprimir();
+            // ==========================================
+            // 5. Analisis sintactico
+            // ==========================================
+            System.out.println("----------- ANALISIS SINTACTICO -----------");
+            AnalizadorDML analizador = new AnalizadorDML();
+            List<String> erroresSintacticos = analizador.analizar(tokens);
+
+            if(erroresSintacticos.isEmpty()) {
+                System.out.println("No se encontraron errores sintacticos.");
+            } else {
+                System.out.println("Se encontraron errores sintacticos:");
+                for (String error : erroresSintacticos) {
+                    System.out.println(error);
+                }
+            }
 
             // ==========================================
             // 6. Resultado final
