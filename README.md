@@ -42,6 +42,8 @@ datos.
 Requiere **JDK 21**. Desde la raíz del repositorio:
 
 ```sh
+javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out src/Main.java src/lexer/*.java src/parser/*.java src/symbol_table/*.java tests/PruebaFase1.java tests/PruebaParserDDL.java
+java -cp out PruebaParserDDL
 javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out src/Main.java src/lexer/*.java src/symbol_table/*.java tests/PruebaFase1.java tests/PruebaAnalizadorDML.java
 java -cp out Main tests/test_ddl.sql
 java -cp out Main tests/test_dml.sql
@@ -82,3 +84,4 @@ código `1`. `PruebaFase1` debe ejecutarse desde la raíz para encontrar `tests/
 
 - [Especificación léxica](docs/especificacion_lexica.md)
 - [Tabla de símbolos](docs/tabla_simbolos.md)
+- [Analizador sintáctico DDL](docs/parser_ddl.md)
