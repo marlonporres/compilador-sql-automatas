@@ -144,6 +144,34 @@ public class TablaSimbolos {
         return true;
     }
 
+    /* Fase 2: la semantica DDL llama a este metodo cuando un nombre quedo bien
+     * declarado, para ponerle su categoria y tipo. Como aqui hay una fila por
+     * nombre, si la columna esta en dos tablas con tipos distintos le pongo VARIOS
+     * (lo de cada tabla esta en CatalogoEsquema). Si ya tenia otra categoria
+     * la dejo como estaba y devuelvo false.
+     */
+    public boolean marcarDeclarado(String nombre, CategoriaSimbolo categoria, TipoToken tipoDeDato) {
+        Simbolo simbolo = buscar(nombre);
+        if (simbolo == null || categoria == null || categoria == CategoriaSimbolo.DESCONOCIDA) {
+            return false;
+        }
+        if (simbolo.getCategoria() == CategoriaSimbolo.DESCONOCIDA) {
+            simbolo.setCategoria(categoria);
+            if (categoria == CategoriaSimbolo.COLUMNA) {
+                simbolo.setTipoDato(tipoDeDato);
+            }
+            return true;
+        }
+        if (simbolo.getCategoria() != categoria) {
+            return false;
+        }
+        if (categoria == CategoriaSimbolo.COLUMNA
+                && !simbolo.getTipoDato().equals(Simbolo.nombreTipo(tipoDeDato))) {
+            simbolo.setTipoDato(Simbolo.TIPO_DATO_VARIOS);
+        }
+        return true;
+    }
+
     public void limpiar() {
         simbolos.clear();
         contadorId = 0;
