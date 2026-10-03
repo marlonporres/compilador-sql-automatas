@@ -30,6 +30,17 @@ public class PruebaAnalizadorDML {
         List<String> errores = analizar("SELECCIONAR * DESDE;");
         comprobar("el error incluye linea y columna", errores.size() == 1
                 && errores.getFirst().contains("linea 1, columna"));
+
+        invalido("SELECCIONAR * DESDE usuarios");
+        validar("SELECCIONAR * DESDE usuarios DONDE 1 = id;");
+        invalido("INSERTAR EN usuarios VALORES (valorNoLiteral);");
+
+        // La segunda sentencia es invalida para hacer observable si se descarta.
+        List<String> recuperacion = analizar("; SELECCIONAR DESDE usuarios;");
+        comprobar("una sentencia vacia no descarta la siguiente sentencia",
+                recuperacion.size() == 2
+                && recuperacion.getFirst().contains("linea 1, columna 1:"));
+
         System.out.println("Pruebas Analizador DML: " + total + "   Fallidas: " + fallidas);
         if (fallidas > 0) {
             System.exit(1);

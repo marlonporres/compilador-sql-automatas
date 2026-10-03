@@ -51,10 +51,24 @@ public class CatalogoEsquema {
         if (tabla == null || nuevo == null || existeTabla(nuevo)) {
             return false;
         }
-        tablas.remove(tabla.getClave());
+        String claveAnterior = tabla.getClave();
         tabla.renombrar(nuevo);
-        tablas.put(tabla.getClave(), tabla);
+        Map<String, TablaDeclarada> renombradas = new LinkedHashMap<>();
+        for (Map.Entry<String, TablaDeclarada> entrada : tablas.entrySet()) {
+            renombradas.put(entrada.getKey().equals(claveAnterior)
+                    ? tabla.getClave() : entrada.getKey(), entrada.getValue());
+        }
+        tablas.clear();
+        tablas.putAll(renombradas);
         return true;
+    }
+
+    public boolean modificarColumna(String nombreTabla, String nombreColumna, TipoToken tipo) {
+        TablaDeclarada tabla = buscarTabla(nombreTabla);
+        if (tabla == null || tipo == null) {
+            return false;
+        }
+        return tabla.modificarColumna(nombreColumna, tipo);
     }
 
     public boolean eliminarColumna(String nombreTabla, String nombreColumna) {

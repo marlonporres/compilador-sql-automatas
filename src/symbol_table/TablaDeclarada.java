@@ -75,6 +75,18 @@ public class TablaDeclarada {
         columnas.remove(buscarColumna(nombreColumna));
     }
 
+    //Sustituye el tipo conservando nombre, posicion de declaracion y orden.
+    boolean modificarColumna(String nombreColumna, TipoToken tipoDato) {
+        ColumnaDeclarada anterior = buscarColumna(nombreColumna);
+        if (anterior == null) {
+            return false;
+        }
+        int posicion = columnas.indexOf(anterior);
+        columnas.set(posicion, new ColumnaDeclarada(anterior.getNombre(), tipoDato,
+                nombre, anterior.getLinea(), anterior.getColumna()));
+        return true;
+    }
+
     //al renombrar tambien hay que cambiarle el ambito a las columnas
     void renombrar(String nuevoNombre) {
         nombre = nuevoNombre;

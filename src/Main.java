@@ -7,24 +7,30 @@ import java.util.List;
 
 import lexer.ScannerSQL;
 import lexer.Token;
-import lexer.AnalizadorDML;
 import symbol_table.TablaSimbolos;
+import compiler.CompiladorSQL;
+import compiler.ResultadoCompilacion;
+import errors.FaseError;
 
-/** Lee el archivo UTF-8 y conecta el scanner con la tabla, sin análisis sintáctico. */
+/** Entrada de consola: modo léxico original y análisis completo con --fase2. */
 public class Main {
 
     public static void main(String[] args) {
 
         System.out.println("==============================================");
-        System.out.println("       COMPILADOR SQL - FASE 1");
-        System.out.println("       ANALIZADOR LEXICO");
+        System.out.println("       COMPILADOR SQL");
+        System.out.println("       ANALISIS DEL LENGUAJE SQL EN ESPANOL");
         System.out.println("==============================================");
         System.out.println();
 
         // Verificar que se haya indicado un archivo
-        if (args.length != 1) {
+        boolean fase2 = (args.length == 2 || args.length == 3)
+                && args[1].equals("--fase2")
+                && (args.length != 3 || args[2].equals("--resumen"));
+        if (args.length != 1 && !fase2) {
             System.out.println("Uso:");
             System.out.println("java -cp out Main <archivo.sql>");
+            System.out.println("java -cp out Main <archivo.sql> --fase2 [--resumen]");
             System.out.println();
             System.out.println("Ejemplo:");
             System.out.println("java -cp out Main tests/test_ddl.sql");
@@ -45,6 +51,12 @@ public class Main {
 
             System.out.println("Archivo analizado: " + rutaArchivo);
             System.out.println();
+            if (fase2) {
+                ResultadoCompilacion resultado = new CompiladorSQL().analizar(entrada);
+                imprimirFase2(resultado, args.length == 3);
+                if (!resultado.esValido()) System.exit(1);
+                return;
+            }
 
             // ==========================================
             // 2. Crear y ejecutar ScannerSQL
@@ -83,23 +95,11 @@ public class Main {
             // Se registran solo identificadores; errores, reservadas y literales quedan fuera.
             tabla.registrarTodos(tokens);
 
+            // ==========================================
+            // 5. Mostrar tabla de simbolos
+            // ==========================================
             System.out.println("---------- TABLA DE SIMBOLOS ----------");
             tabla.imprimir();
-            // ==========================================
-            // 5. Analisis sintactico
-            // ==========================================
-            System.out.println("----------- ANALISIS SINTACTICO -----------");
-            AnalizadorDML analizador = new AnalizadorDML();
-            List<String> erroresSintacticos = analizador.analizar(tokens);
-
-            if(erroresSintacticos.isEmpty()) {
-                System.out.println("No se encontraron errores sintacticos.");
-            } else {
-                System.out.println("Se encontraron errores sintacticos:");
-                for (String error : erroresSintacticos) {
-                    System.out.println(error);
-                }
-            }
 
             // ==========================================
             // 6. Resultado final
@@ -132,5 +132,32 @@ public class Main {
             System.out.println(e.getMessage());
             System.exit(2);
         }
+    }
+
+    private static void imprimirFase2(ResultadoCompilacion resultado, boolean resumen) {
+        System.out.println("======= FASE 2: SINTAXIS Y SEMANTICA =======");
+        if (!resumen) {
+            System.out.println("--------------- TOKENS ---------------");
+            resultado.tokens().forEach(System.out::println);
+            System.out.println("----- IDENTIFICADORES OBSERVADOS POR EL LEXICO -----");
+            resultado.simbolosLexicos().imprimir();
+        }
+        System.out.println("---------- SENTENCIAS RECONOCIDAS ----------");
+        resultado.sentencias().forEach(s -> System.out.printf("L:%d C:%d | %s%n",
+                s.getLinea(), s.getColumna(), s));
+        System.out.println("---------- TABLA DE SIMBOLOS SEMANTICA ----------");
+        resultado.catalogo().imprimir();
+        System.out.println("---------- TABLA DE ERRORES ----------");
+        resultado.errores().imprimir();
+        System.out.printf("Errores lexicos: %d | sintacticos: %d | semanticos: %d%n",
+                resultado.errores().contar(FaseError.LEXICA),
+                resultado.errores().contar(FaseError.SINTACTICA),
+                resultado.errores().contar(FaseError.SEMANTICA));
+        System.out.printf("Sentencias reconocidas: %d | validas semanticamente: %d%n",
+                resultado.sentencias().size(), resultado.sentenciasValidas());
+        System.out.println(resultado.esValido()
+                ? "RESULTADO: ANALISIS COMPLETO SIN ERRORES"
+                : "RESULTADO: SE ENCONTRARON ERRORES");
+        System.out.println("Fase 2 valida scripts y esquemas; no ejecuta consultas ni almacena filas.");
     }
 }

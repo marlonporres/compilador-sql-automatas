@@ -3,9 +3,11 @@ package semantic;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import lexer.TipoToken;
+import lexer.Token;
 import parser.ColumnaDDL;
 import parser.SentenciaDDL;
 import symbol_table.CatalogoEsquema;
@@ -21,7 +23,8 @@ import symbol_table.TablaSimbolos;
  * nada a medias. El catalogo es el mismo que despues usa la semantica DML.
  *
  * Codigos: SEM-101 tabla repetida, SEM-102 columna repetida, SEM-103 tabla
- * no existe, SEM-104 columna no existe, SEM-105 tabla sin columnas
+ * no existe, SEM-104 columna no existe, SEM-105 tabla sin columnas,
+ * SEM-106 representacion DDL incompleta o invalida
  */
 public class AnalizadorSemanticoDDL {
 
@@ -55,8 +58,8 @@ public class AnalizadorSemanticoDDL {
             case ELIMINAR_TABLA -> eliminarTabla(sentencia);
             //TRUNCAR borra filas y aqui no manejamos filas, solo reviso que exista
             case TRUNCAR_TABLA -> revisarQueExista(sentencia);
-            //el parser todavia no trae que se altera ni el nombre nuevo, solo reviso la tabla
-            case ALTERAR_TABLA, RENOMBRAR_TABLA -> revisarQueExista(sentencia);
+            case ALTERAR_TABLA -> alterarTabla(sentencia);
+            case RENOMBRAR_TABLA -> renombrarTabla(sentencia);
         };
         errores.addAll(nuevos);
         return nuevos;
@@ -65,6 +68,11 @@ public class AnalizadorSemanticoDDL {
     private List<ErrorSemantico> crearTabla(SentenciaDDL sentencia) {
         List<ErrorSemantico> nuevos = new ArrayList<>();
         String tabla = sentencia.getNombreTabla();
+
+        if (sentencia.getColumnas().isEmpty()
+                || sentencia.getColumnas().stream().anyMatch(col -> !columnaCompleta(col))) {
+            return incompleta(sentencia, "CREAR requiere al menos una columna con nombre y tipo validos");
+        }
 
         if (catalogo.existeTabla(tabla)) {
             nuevos.add(new ErrorSemantico("SEM-101", "Ya existe una tabla con ese nombre",
@@ -108,12 +116,72 @@ public class AnalizadorSemanticoDDL {
         return nuevos;
     }
 
-    /* Estos tres son para cuando el parser traiga la forma completa de ALTERAR
-     * y RENOMBRAR (falta acordarla con la persona 1). Ya funcionan y tienen pruebas.
-     */
+    private List<ErrorSemantico> alterarTabla(SentenciaDDL sentencia) {
+        String operacion = sentencia.getOperacion();
+        if (operacion == null) return incompleta(sentencia, "Falta la operacion de ALTERAR");
+        operacion = operacion.toUpperCase(Locale.ROOT);
+        if (operacion.equals("QUITAR")) {
+            Token columna = sentencia.getNuevoNombre();
+            if (!nombreCompleto(columna) || !sentencia.getColumnas().isEmpty()) {
+                return incompleta(sentencia, "QUITAR requiere el nombre de una columna");
+            }
+            return quitarColumna(sentencia.getNombreTabla(), columna.getLexema(),
+                    columna.getlinea(), columna.getcolumna());
+        }
+        if ((!operacion.equals("AGREGAR") && !operacion.equals("MODIFICAR"))
+                || sentencia.getColumnas().size() != 1
+                || !columnaCompleta(sentencia.getColumnas().get(0))
+                || sentencia.getNuevoNombre() != null) {
+            return incompleta(sentencia, "ALTERAR requiere AGREGAR o MODIFICAR una columna con tipo, o QUITAR un nombre");
+        }
+        ColumnaDDL columna = sentencia.getColumnas().get(0);
+        return operacion.equals("AGREGAR")
+                ? agregarColumnaInterna(sentencia.getNombreTabla(), columna)
+                : modificarColumnaInterna(sentencia.getNombreTabla(), columna);
+    }
+
+    private List<ErrorSemantico> renombrarTabla(SentenciaDDL sentencia) {
+        Token nuevo = sentencia.getNuevoNombre();
+        if (!nombreCompleto(nuevo) || !sentencia.getColumnas().isEmpty()
+                || (sentencia.getOperacion() != null && !sentencia.getOperacion().isEmpty())) {
+            return incompleta(sentencia, "RENOMBRAR requiere A y el nuevo nombre de tabla");
+        }
+        return renombrarTablaInterna(sentencia.getNombreTabla(), nuevo.getLexema(),
+                nuevo.getlinea(), nuevo.getcolumna());
+    }
+
+    private static boolean nombreCompleto(Token token) {
+        return token != null && token.getTipo() == TipoToken.IDENTIFICADOR
+                && token.getLexema() != null && !token.getLexema().isBlank();
+    }
+
+    private static boolean columnaCompleta(ColumnaDDL columna) {
+        if (columna == null || columna.getNombre() == null || columna.getNombre().isBlank()) return false;
+        TipoToken tipo = columna.getTipoDato();
+        return tipo == TipoToken.TIPO_ENTERO || tipo == TipoToken.TIPO_TEXTO
+                || tipo == TipoToken.TIPO_FECHA || tipo == TipoToken.TIPO_DECIMAL
+                || tipo == TipoToken.TIPO_BOOLEANO;
+    }
+
+    private List<ErrorSemantico> incompleta(SentenciaDDL sentencia, String mensaje) {
+        return List.of(new ErrorSemantico("SEM-106", mensaje, sentencia.getNombreTabla(),
+                sentencia.getLinea(), sentencia.getColumna()));
+    }
+
+    //La API publica se conserva para usar y probar operaciones individuales.
 
     public List<ErrorSemantico> renombrarTabla(String actual, String nuevo, int linea, int columna) {
+        List<ErrorSemantico> nuevos = renombrarTablaInterna(actual, nuevo, linea, columna);
+        errores.addAll(nuevos);
+        return nuevos;
+    }
+
+    private List<ErrorSemantico> renombrarTablaInterna(String actual, String nuevo, int linea, int columna) {
         List<ErrorSemantico> nuevos = new ArrayList<>();
+        if (nuevo == null || nuevo.isBlank()) {
+            nuevos.add(new ErrorSemantico("SEM-106", "Falta el nuevo nombre de tabla", actual, linea, columna));
+            return nuevos;
+        }
         if (!catalogo.existeTabla(actual)) {
             nuevos.add(new ErrorSemantico("SEM-103", "No existe una tabla con ese nombre", actual, linea, columna));
         }
@@ -124,12 +192,22 @@ public class AnalizadorSemanticoDDL {
             catalogo.renombrarTabla(actual, nuevo);
             marcar(nuevo, CategoriaSimbolo.TABLA, null);
         }
-        errores.addAll(nuevos);
         return nuevos;
     }
 
     public List<ErrorSemantico> agregarColumna(String nombreTabla, ColumnaDDL col) {
+        List<ErrorSemantico> nuevos = agregarColumnaInterna(nombreTabla, col);
+        errores.addAll(nuevos);
+        return nuevos;
+    }
+
+    private List<ErrorSemantico> agregarColumnaInterna(String nombreTabla, ColumnaDDL col) {
         List<ErrorSemantico> nuevos = new ArrayList<>();
+        if (!columnaCompleta(col)) {
+            nuevos.add(new ErrorSemantico("SEM-106", "La columna requiere nombre y tipo validos",
+                    nombreTabla, col == null ? 1 : col.getLinea(), col == null ? 1 : col.getColumna()));
+            return nuevos;
+        }
         TablaDeclarada tabla = catalogo.buscarTabla(nombreTabla);
         if (tabla == null) {
             nuevos.add(new ErrorSemantico("SEM-103", "No existe una tabla con ese nombre",
@@ -141,11 +219,43 @@ public class AnalizadorSemanticoDDL {
             catalogo.agregarColumna(nombreTabla, col.getNombre(), col.getTipoDato(), col.getLinea(), col.getColumna());
             marcar(col.getNombre(), CategoriaSimbolo.COLUMNA, col.getTipoDato());
         }
+        return nuevos;
+    }
+
+    public List<ErrorSemantico> modificarColumna(String nombreTabla, ColumnaDDL col) {
+        List<ErrorSemantico> nuevos = modificarColumnaInterna(nombreTabla, col);
         errores.addAll(nuevos);
         return nuevos;
     }
 
+    private List<ErrorSemantico> modificarColumnaInterna(String nombreTabla, ColumnaDDL col) {
+        List<ErrorSemantico> nuevos = new ArrayList<>();
+        if (!columnaCompleta(col)) {
+            nuevos.add(new ErrorSemantico("SEM-106", "La columna requiere nombre y tipo validos",
+                    nombreTabla, col == null ? 1 : col.getLinea(), col == null ? 1 : col.getColumna()));
+            return nuevos;
+        }
+        TablaDeclarada tabla = catalogo.buscarTabla(nombreTabla);
+        if (tabla == null) {
+            nuevos.add(new ErrorSemantico("SEM-103", "No existe una tabla con ese nombre",
+                    nombreTabla, col.getLinea(), col.getColumna()));
+        } else if (!tabla.tieneColumna(col.getNombre())) {
+            nuevos.add(new ErrorSemantico("SEM-104", "La tabla no tiene una columna con ese nombre",
+                    tabla.getNombre() + "." + col.getNombre(), col.getLinea(), col.getColumna()));
+        } else {
+            catalogo.modificarColumna(nombreTabla, col.getNombre(), col.getTipoDato());
+            marcar(col.getNombre(), CategoriaSimbolo.COLUMNA, col.getTipoDato());
+        }
+        return nuevos;
+    }
+
     public List<ErrorSemantico> eliminarColumna(String nombreTabla, String nombreColumna, int linea, int columna) {
+        List<ErrorSemantico> nuevos = quitarColumna(nombreTabla, nombreColumna, linea, columna);
+        errores.addAll(nuevos);
+        return nuevos;
+    }
+
+    private List<ErrorSemantico> quitarColumna(String nombreTabla, String nombreColumna, int linea, int columna) {
         List<ErrorSemantico> nuevos = new ArrayList<>();
         TablaDeclarada tabla = catalogo.buscarTabla(nombreTabla);
         if (tabla == null) {
@@ -161,7 +271,6 @@ public class AnalizadorSemanticoDDL {
         } else {
             catalogo.eliminarColumna(nombreTabla, nombreColumna);
         }
-        errores.addAll(nuevos);
         return nuevos;
     }
 

@@ -41,10 +41,10 @@ public final class PruebaParserDDL {
     private static void aceptaDDLCompleto() {
         ResultadoSintacticoDDL resultado = analizar(
                 "CREAR TABLA usuarios (id ENTERO, nombre TEXTO, activo BOOLEANO);"
-                        + "ALTERAR TABLA usuarios;"
+                        + "ALTERAR TABLA usuarios AGREGAR edad ENTERO;"
                         + "ELIMINAR TABLA usuarios;"
                         + "TRUNCAR TABLA usuarios;"
-                        + "RENOMBRAR TABLA usuarios;");
+                        + "RENOMBRAR TABLA usuarios A clientes;");
         probar("acepta cinco sentencias DDL", resultado.esValido()
                 && resultado.getSentencias().size() == 5);
         SentenciaDDL crear = resultado.getSentencias().get(0);

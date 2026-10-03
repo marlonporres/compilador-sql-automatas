@@ -1,7 +1,7 @@
 -- ==========================================
 -- SCRIPT DE DEMOSTRACION FASE 2
 -- ==========================================
--- Tiene casos de los 4, cada uno revise y complete su parte
+-- Tiene casos de los 4 integrantes, con errores intencionales
 -- Las sentencias se revisan en orden y el catalogo empieza vacio
 -- En cada caso puse lo que deberia salir
 
@@ -34,10 +34,10 @@ CREAR TABLA productos (
     precio DECIMAL
 );
 
--- SEM-101 usuarios ya existe
+-- SEM-001 usuarios ya existe en el recorrido completo
 CREAR TABLA usuarios (correo TEXTO);
 
--- SEM-102 id esta repetida, pedidos no se crea
+-- SEM-002 id esta repetida, pedidos no se crea
 CREAR TABLA pedidos (
     id ENTERO,
     total DECIMAL,
@@ -47,18 +47,19 @@ CREAR TABLA pedidos (
 -- bien, truncar no cambia la tabla
 TRUNCAR TABLA usuarios;
 
--- SEM-103 pedidos no existe porque no se creo
+-- SEM-003 pedidos no existe porque no se creo
 TRUNCAR TABLA pedidos;
 
--- bien, solo revisa que la tabla exista
-ALTERAR TABLA usuarios;
-RENOMBRAR TABLA productos;
+-- bien, modifica el tipo y renombra con la forma completa
+ALTERAR TABLA usuarios MODIFICAR salario DECIMAL;
+RENOMBRAR TABLA productos A articulos;
+RENOMBRAR TABLA articulos A productos;
 
 -- bien, se crea temporal y se elimina
 CREAR TABLA temporal (dato ENTERO);
 ELIMINAR TABLA temporal;
 
--- SEM-103 temporal ya se elimino
+-- SEM-003 temporal ya se elimino
 ELIMINAR TABLA temporal;
 
 
@@ -67,9 +68,9 @@ ELIMINAR TABLA temporal;
 -- ------------------------------------------
 
 -- bien
-INSERTAR EN usuarios VALORES (1, 'Carlos', '2000-01-15', 1500.50, 1);
+INSERTAR EN usuarios VALORES (1, 'Carlos', '2000-01-15', 1500.50, VERDADERO);
 SELECCIONAR * DESDE usuarios;
-SELECCIONAR nombre DESDE usuarios DONDE id >= 1 Y NO (salario < 1000 O activo = 0);
+SELECCIONAR nombre DESDE usuarios DONDE id >= 1 Y NO (salario < 1000 O activo = FALSO);
 ACTUALIZAR usuarios ASIGNAR nombre = 'Pedro' DONDE id = 1;
 BORRAR DESDE usuarios DONDE id = 1;
 
@@ -94,7 +95,7 @@ SELECCIONAR correo DESDE usuarios;
 INSERTAR EN usuarios VALORES (2, 'Maria');
 
 -- error: id es ENTERO
-INSERTAR EN usuarios VALORES ('dos', 'Maria', '2001-02-02', 900.00, 1);
+INSERTAR EN usuarios VALORES ('dos', 'Maria', '2001-02-02', 900.00, FALSO);
 
 -- error: temporal ya se elimino
 SELECCIONAR * DESDE temporal;

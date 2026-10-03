@@ -32,7 +32,7 @@ exista y deja el esquema igual.
 | `src/symbol_table/TablaSimbolos.java` | La de la fase 1, se le agrego `marcarDeclarado` |
 | `src/semantic/AnalizadorSemanticoDDL.java` | Las reglas de CREAR, ALTERAR, ELIMINAR, TRUNCAR y RENOMBRAR |
 | `src/semantic/ErrorSemantico.java` | El error semantico |
-| `tests/PruebaSemanticaDDL.java` | Pruebas (48) |
+| `tests/PruebaSemanticaDDL.java` | Pruebas (70) |
 | `tests/demo_fase2.sql` | Script de demostracion con casos de los 4 |
 
 ## 3. Como funciona
@@ -81,6 +81,7 @@ classDiagram
         +eliminarTabla()
         +renombrarTabla()
         +agregarColumna()
+        +modificarColumna()
         +eliminarColumna()
         +existeTabla()
         +existeColumna()
@@ -149,14 +150,18 @@ flowchart TD
 | CREAR TABLA | que la tabla no exista (SEM-101) y que no se repitan columnas (SEM-102) | se crea la tabla con sus columnas |
 | ELIMINAR TABLA | que exista (SEM-103) | se quita la tabla con sus columnas |
 | TRUNCAR TABLA | que exista (SEM-103) | nada |
-| ALTERAR TABLA | que exista (SEM-103) | nada por ahora (ver seccion 8) |
-| RENOMBRAR TABLA | que exista (SEM-103) | nada por ahora (ver seccion 8) |
+| ALTERAR TABLA AGREGAR | que exista la tabla (SEM-103) y que la columna sea nueva (SEM-102) | agrega la columna al final |
+| ALTERAR TABLA MODIFICAR | que exista la tabla (SEM-103) y la columna (SEM-104) | cambia el tipo conservando nombre, posicion y orden |
+| ALTERAR TABLA QUITAR | que exista la tabla (SEM-103) y la columna (SEM-104), y que quede al menos una columna (SEM-105) | retira la columna |
+| RENOMBRAR TABLA | que exista la tabla (SEM-103) y que el nombre nuevo este libre (SEM-101) | cambia el nombre y los ambitos, conservando el orden de tablas |
 
-Para cuando el parser traiga la forma completa ya estan hechos y probados:
+Estas operaciones se aplican desde `analizarSentencia` usando la representacion
+completa del parser. Tambien se conserva la API publica para llamadas individuales:
 
 - `renombrarTabla`: la tabla debe existir (SEM-103) y el nombre nuevo no (SEM-101).
   Las columnas se quedan igual pero cambian de ambito.
 - `agregarColumna`: la tabla debe existir (SEM-103) y no tener ya esa columna (SEM-102).
+- `modificarColumna`: la tabla debe existir (SEM-103) y contener la columna (SEM-104).
 - `eliminarColumna`: la tabla debe existir (SEM-103), tener la columna (SEM-104)
   y no quedarse sin columnas (SEM-105).
 
@@ -173,6 +178,7 @@ sentencia y si es de una columna la posicion de esa columna.
 | SEM-103 | la tabla no existe |
 | SEM-104 | la columna no existe en esa tabla |
 | SEM-105 | la tabla se quedaria sin columnas |
+| SEM-106 | representacion DDL incompleta o contradictoria; no se modifica el catalogo |
 
 Ejemplo:
 
@@ -180,12 +186,13 @@ Ejemplo:
 [SEMANTICA][SEM-102] La columna se declara mas de una vez (elemento: "pedidos.id", L:44 C:5)
 ```
 
-Use SEM-1xx para DDL, la Persona 4 puede usar SEM-2xx para DML. Si la Persona 4
-cambia el formato comun de errores se ajusta `ErrorSemantico`.
+La API de este modulo conserva sus codigos SEM-1xx y `ErrorSemantico`. El flujo
+integrado de `Main` devuelve la tabla de diagnosticos uniforme documentada en
+[fase2.md](fase2.md), con los codigos SEM-001 a SEM-009.
 
 ## 7. Como se usa
 
-### En Main
+### Uso de la API del modulo
 
 ```java
 TablaSimbolos tabla = new TablaSimbolos();
@@ -203,7 +210,9 @@ tabla.imprimir();
 ```
 
 Si solo hay DDL tambien se puede usar `analizar(lista)`. `getErrores()` devuelve
-todos los errores que van saliendo.
+todos los errores que van saliendo, sin duplicar los de operaciones llamadas
+desde `analizarSentencia`. Para la demostracion completa, `Main` utiliza
+`CompiladorSQL` y su catalogo integrado, como se explica en [fase2.md](fase2.md).
 
 ### Consultas para la Persona 4
 
@@ -239,51 +248,46 @@ la misma columna esta en varias tablas con tipos distintos queda VARIOS (el
 detalle de cada tabla esta en el catalogo). Lo que nunca se declaro bien sigue
 DESCONOCIDA.
 
-## 8. Pendiente con la Persona 1: ALTERAR y RENOMBRAR
+## 8. Formas completas de ALTERAR y RENOMBRAR
 
-Ahorita el parser acepta `ALTERAR TABLA t` y `RENOMBRAR TABLA t` sin decir que se
-cambia ni el nombre nuevo, entonces solo se puede revisar que la tabla exista.
-Propuesta:
+El parser construye el nombre de tabla, la operacion, la columna y su tipo, o
+el nombre nuevo. La gramatica acordada e implementada es:
 
 ```text
-renombrar ::= RENOMBRAR TABLA identificador EN identificador
+renombrar ::= RENOMBRAR TABLA identificador A identificador
 alterar   ::= ALTERAR TABLA identificador AGREGAR identificador tipo_dato
-            | ALTERAR TABLA identificador ELIMINAR identificador
+            | ALTERAR TABLA identificador MODIFICAR identificador tipo_dato
+            | ALTERAR TABLA identificador QUITAR identificador
 ```
 
-EN y ELIMINAR ya existen, solo habria que agregar AGREGAR al scanner. Tambien
-`SentenciaDDL` tendria que traer el nombre nuevo o la columna. Con eso solo hay
-que llamar a `renombrarTabla`, `agregarColumna` o `eliminarColumna`, que ya estan.
-Si no da tiempo se queda la forma simple.
+Cada sentencia termina con `;`. AGREGAR, MODIFICAR, QUITAR y A se reconocen
+por contexto en el parser. Las formas simples `ALTERAR TABLA t;` y
+`RENOMBRAR TABLA t;` son errores sintacticos. Si una llamada directa entrega
+un AST incompleto, la API semantica devuelve SEM-106 y conserva el catalogo.
 
 ## 9. Pruebas
 
-```sh
-javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out src/lexer/*.java src/parser/*.java src/symbol_table/*.java src/semantic/*.java tests/PruebaSemanticaDDL.java
-java -cp out PruebaSemanticaDDL
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\demo.ps1 -Modo pruebas
 ```
 
-48 pruebas, 0 fallidas. Prueban crear tablas, la misma columna en dos tablas,
+El instructivo compila todos los paquetes con `--release 21 -Xlint:all -Werror`
+y ejecuta las suites, incluida `PruebaSemanticaDDL`: 70 pruebas, 0 fallidas.
+Prueban crear tablas, la misma columna en dos tablas,
 tablas y columnas repetidas, que no queden cambios a medias, ELIMINAR, TRUNCAR,
-ALTERAR y RENOMBRAR, renombrar/agregar/eliminar columna, las consultas para DML,
+ALTERAR y RENOMBRAR completos, renombrar/agregar/modificar/eliminar columna,
+AST incompletos, orden de tablas y posiciones originales, las consultas para DML,
 el formato de los errores, un script pasado por el scanner y el parser de verdad
 y la clasificacion de la tabla de simbolos. Al final imprime un ejemplo del
 catalogo. Si algo falla termina con codigo 1.
 
 ## 10. Script de demostracion
 
-`tests/demo_fase2.sql` tiene una parte por persona y en cada caso dice lo que
-deberia salir. La parte de semantica DDL da:
+El dispatcher integrado selecciona DDL o DML segun la primera palabra y
+continua despues de errores. Para la demostracion actual use
+`tests/demo_fase2_valido.sql` y `tests/demo_fase2_errores.sql`, siguiendo
+[el instructivo de demostracion](instructivo_demostracion.md).
 
-```text
-[SEMANTICA][SEM-101] Ya existe una tabla con ese nombre (elemento: "usuarios", L:38 C:1)
-[SEMANTICA][SEM-102] La columna se declara mas de una vez (elemento: "pedidos.id", L:44 C:5)
-[SEMANTICA][SEM-103] No existe una tabla con ese nombre (elemento: "pedidos", L:51 C:1)
-[SEMANTICA][SEM-103] No existe una tabla con ese nombre (elemento: "temporal", L:62 C:1)
-```
-
-y el catalogo queda con usuarios (5 columnas) y productos (3 columnas).
-
-Para que el script completo corra por Main falta que el parser mande cada
-sentencia al parser DDL o al DML segun la primera palabra. Ahorita cada uno
-marca error en las sentencias del otro. Eso lo ven la Persona 1 y la Persona 2.
+`tests/demo_fase2.sql` conserva casos del equipo agrupados por contribucion.
+La salida integrada utiliza los codigos de `TablaErrores`; las pruebas de la API
+aislada DDL verifican los codigos SEM-1xx descritos en este documento.

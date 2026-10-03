@@ -25,40 +25,40 @@ modulo de simbolos/semantica DDL del proyecto y se consumen, no se duplican.
 |---|---|
 | `SEM-201` | La tabla referenciada no existe. |
 | `SEM-202` | La columna referenciada no existe. |
-| `SEM-203` | Cantidad de columnas/valores incorrecta o columna repetida en INSERTAR. |
+| `SEM-203` | Cantidad de columnas/valores incorrecta o columna repetida en INSERTAR o ACTUALIZAR. |
 | `SEM-204` | El tipo del valor no es compatible con la columna. |
-| `SEM-205` | Se usa una comparacion ordenada (`>`, `<`, `>=`, `<=`) sobre un tipo no numerico. |
+| `SEM-205` | Se usa una comparación ordenada (`>`, `<`, `>=`, `<=`) sobre TEXTO o BOOLEANO. |
 
 ### Compatibilidad de literales
 
 El scanner actual produce tres clases de literales DML: entero, decimal y
 cadena. Un `ENTERO` es compatible con `ENTERO` y puede asignarse a `DECIMAL`;
 un decimal solo es compatible con `DECIMAL`; una cadena es compatible con
-`TEXTO`. Un identificador usado como valor se resuelve como una columna de la
-misma tabla y se compara su tipo.
+`TEXTO`. En INSERTAR y asignaciones se aceptan literales, no referencias a
+columnas como valores. Las columnas pueden aparecer como operandos de condiciones.
 
-`FECHA` y `BOOLEANO` existen como tipos declarativos del lenguaje, pero el
-scanner actual no define literales dedicados para esos tipos. Por ello este
-modulo no inventa tokens nuevos ni cambia el scanner: una fecha o booleano debe
-llegar con la representación que acuerde el equipo en el contrato DML.
+`FECHA` acepta cadenas ISO `'AAAA-MM-DD'` con una fecha real de calendario.
+`BOOLEANO` acepta `VERDADERO` y `FALSO` sin comillas. Se interpretan de forma
+contextual, conservando el scanner de la fase 1.
 
 ## Condiciones
 
-Se valida que la columna de la izquierda exista y que el valor de la derecha
-sea compatible. `=` y `!=` aceptan tipos compatibles. Las comparaciones
-ordenadas requieren un tipo numerico. Las condiciones se revisan en
-`DONDE` de `SELECCIONAR`, `ACTUALIZAR` y `BORRAR`, respetando que la sintaxis ya
-fue validada por `lexer.AnalizadorDML`.
+Se validan ambos operandos, sean columnas o literales. `=`, `!=` y `<>` aceptan
+tipos compatibles. Las comparaciones ordenadas permiten números y fechas.
+Las condiciones en `DONDE` de SELECCIONAR, ACTUALIZAR y BORRAR respetan
+paréntesis y la precedencia `NO`, `Y`, `O`.
 
 ## Recuperacion y dependencia de sintaxis
 
-`SemanticaDML` llama al `AnalizadorDML` existente cuando recibe solo tokens.
-Si una sentencia contiene un error sintactico, se identifica su linea y se
-omite esa sentencia del analisis semantico. Asi una estructura mal formada no
-se trata como una sentencia semanticamente valida.
+`SemanticaDML` usa el parser común y valida únicamente los AST DML aceptados.
+Las sentencias inválidas se descartan por sus límites, nunca por compartir
+línea con otra sentencia. Así puede recuperarse después del siguiente `;`.
 
-Cuando `Main` ya tenga la lista de errores sintacticos, puede usar la sobrecarga
-`analizar(tokens, erroresSintacticos)` para reutilizar el resultado del parser.
+La sobrecarga `analizar(tokens, erroresSintacticos)` conserva la firma de la
+contribución original y verifica la sintaxis con el parser. El recorrido
+completo de `Main --fase2` usa `CompiladorSQL`, `AnalizadorSemantico` y la tabla
+`errors.TablaErrores`. La API del equipo adapta los diagnósticos a SEM-201–205
+y conserva `semantic.TablaErrores`; ambas rutas comparten las reglas de tipos.
 
 ## Tabla comun de errores
 
@@ -112,13 +112,11 @@ esquema que ya fue aceptado por la semantica DDL.
 Desde la raiz del proyecto:
 
 ```sh
-javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out \
-  src/lexer/*.java src/parser/*.java src/symbol_table/*.java \
-  src/semantic/*.java tests/PruebaSemanticaDML.java
+javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out src/lexer/*.java src/parser/*.java src/symbol_table/*.java src/errors/*.java src/semantic/*.java tests/PruebaSemanticaDML.java
 
 java -cp out PruebaSemanticaDML
 ```
 
-La prueba cubre tabla inexistente, columna inexistente, cantidad de valores,
+Las 32 comprobaciones cubren tabla inexistente, columna inexistente, cantidad de valores,
 tipos incompatibles, condiciones, `ACTUALIZAR`, `BORRAR`, omision de sentencias
 sintacticamente invalidas y formato comun del diagnostico.

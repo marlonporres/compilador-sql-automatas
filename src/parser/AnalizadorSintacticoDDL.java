@@ -2,6 +2,7 @@ package parser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import lexer.TipoToken;
 import lexer.Token;
@@ -18,8 +19,8 @@ public class AnalizadorSintacticoDDL {
         List<SentenciaDDL> sentencias = new ArrayList<>();
 
         while (!cursor.estaAlFinal()) {
-            if (cursor.coincidir(TipoToken.PUNTO_Y_COMA)) {
-                error("SYN-001", "Se esperaba el inicio de una sentencia DDL", "PUNTO_Y_COMA");
+            if (cursor.comprobar(TipoToken.PUNTO_Y_COMA)) {
+                error("SYN-001", "Se esperaba el inicio de una sentencia DDL", cursor.avanzar());
                 continue;
             }
 
@@ -30,7 +31,7 @@ public class AnalizadorSintacticoDDL {
             }
 
             if (!cursor.coincidir(TipoToken.PUNTO_Y_COMA)) {
-                error("SYN-002", "Se esperaba ';' al final de la sentencia", "PUNTO_Y_COMA");
+                error("SYN-002", "Se esperaba ';' al final de la sentencia", cursor.ver());
                 cursor.recuperarHastaFinDeSentencia();
                 continue;
             }
@@ -85,11 +86,15 @@ public class AnalizadorSintacticoDDL {
             columnas.add(columna);
         }
 
+        if (cursor.comprobar(TipoToken.IDENTIFICADOR)) {
+            error("SYN-010", "Falta ',' entre las definiciones de columnas", cursor.ver());
+            return null;
+        }
         if (!esperar(TipoToken.PARENTESIS_DER, "')'")) {
             return null;
         }
-        return new SentenciaDDL(TipoSentenciaDDL.CREAR_TABLA, tabla.getLexema(),
-                columnas, inicio.getlinea(), inicio.getcolumna());
+        return new SentenciaDDL(TipoSentenciaDDL.CREAR_TABLA, tabla,
+                columnas, inicio.getlinea(), inicio.getcolumna(), "", null);
     }
 
     private ColumnaDDL analizarColumna() {
@@ -115,8 +120,43 @@ public class AnalizadorSintacticoDDL {
         if (tabla == null) {
             return null;
         }
-        return new SentenciaDDL(tipo, tabla.getLexema(), List.of(),
-                inicio.getlinea(), inicio.getcolumna());
+        List<ColumnaDDL> columnas = new ArrayList<>();
+        String operacion = "";
+        Token nuevoNombre = null;
+        if (tipo == TipoSentenciaDDL.RENOMBRAR_TABLA) {
+            if (!palabra("A")) return null;
+            nuevoNombre = esperarIdentificador("el nuevo nombre de la tabla");
+            if (nuevoNombre == null) return null;
+        } else if (tipo == TipoSentenciaDDL.ALTERAR_TABLA) {
+            Token accion = cursor.ver();
+            operacion = accion.getLexema().toUpperCase(Locale.ROOT);
+            if (accion.getTipo() != TipoToken.IDENTIFICADOR
+                    || !List.of("AGREGAR", "MODIFICAR", "QUITAR").contains(operacion)) {
+                error("SYN-008", "Se esperaba AGREGAR, MODIFICAR o QUITAR", accion);
+                return null;
+            }
+            cursor.avanzar();
+            if (operacion.equals("QUITAR")) {
+                nuevoNombre = esperarIdentificador("la columna a quitar");
+                if (nuevoNombre == null) return null;
+            } else {
+                ColumnaDDL columna = analizarColumna();
+                if (columna == null) return null;
+                columnas.add(columna);
+            }
+        }
+        return new SentenciaDDL(tipo, tabla, columnas, inicio.getlinea(),
+                inicio.getcolumna(), operacion, nuevoNombre);
+    }
+
+    private boolean palabra(String palabra) {
+        if (cursor.comprobar(TipoToken.IDENTIFICADOR)
+                && cursor.ver().getLexema().equalsIgnoreCase(palabra)) {
+            cursor.avanzar();
+            return true;
+        }
+        error("SYN-009", "Se esperaba " + palabra, cursor.ver());
+        return false;
     }
 
     private boolean esperar(TipoToken esperado, String descripcion) {
@@ -137,12 +177,6 @@ public class AnalizadorSintacticoDDL {
 
     private void error(String codigo, String mensaje, Token token) {
         errores.add(new ErrorSintactico(codigo, mensaje, token.getLexema(),
-                token.getlinea(), token.getcolumna()));
-    }
-
-    private void error(String codigo, String mensaje, String lexema) {
-        Token token = cursor.ver();
-        errores.add(new ErrorSintactico(codigo, mensaje, lexema,
                 token.getlinea(), token.getcolumna()));
     }
 

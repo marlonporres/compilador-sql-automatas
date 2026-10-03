@@ -20,7 +20,7 @@ import symbol_table.TablaSimbolos;
  * Casi todas arman las sentencias a mano para no depender del parser,
  * las ultimas pasan por el ScannerSQL y el parser DDL de verdad.
  *
- * javac --release 21 -encoding UTF-8 -d out src/lexer/*.java src/parser/*.java src/symbol_table/*.java src/semantic/*.java tests/PruebaSemanticaDDL.java
+ * powershell -NoProfile -ExecutionPolicy Bypass -File .\demo.ps1 -Modo pruebas
  * java -cp out PruebaSemanticaDDL
  */
 public class PruebaSemanticaDDL {
@@ -42,6 +42,9 @@ public class PruebaSemanticaDDL {
         alterarYRenombrarSimple();
         renombrarCompleto();
         agregarYEliminarColumna();
+        modificarColumna();
+        ddlCompletoConScannerYParser();
+        representacionesIncompletas();
         consultasParaDML();
         formatoDeErrores();
         conScannerYParser();
@@ -161,14 +164,14 @@ public class PruebaSemanticaDDL {
         List<ErrorSemantico> errores = sem.analizar(List.of(
                 simple(TipoSentenciaDDL.ALTERAR_TABLA, "usuarios", 5),
                 simple(TipoSentenciaDDL.RENOMBRAR_TABLA, "usuarios", 6)));
-        probar("ALTERAR y RENOMBRAR simples pasan si la tabla existe", errores.isEmpty()
+        probar("ALTERAR y RENOMBRAR incompletos dan SEM-106", codigos(errores).equals(List.of("SEM-106", "SEM-106"))
                 && sem.getCatalogo().buscarTabla("usuarios").cantidadColumnas() == 2);
 
         errores = sem.analizar(List.of(
                 simple(TipoSentenciaDDL.ALTERAR_TABLA, "pedidos", 7),
                 simple(TipoSentenciaDDL.RENOMBRAR_TABLA, "pedidos", 8)));
-        probar("ALTERAR y RENOMBRAR de una que no existe dan SEM-103",
-                codigos(errores).equals(List.of("SEM-103", "SEM-103")));
+        probar("AST incompletos se rechazan aun si la tabla no existe",
+                codigos(errores).equals(List.of("SEM-106", "SEM-106")));
     }
 
     private static void renombrarCompleto() {
@@ -229,6 +232,100 @@ public class PruebaSemanticaDDL {
         probar("borrar la lista que devuelve no cambia el catalogo", catalogo.columnasDe("usuarios").size() == 2);
     }
 
+    private static void modificarColumna() {
+        AnalizadorSemanticoDDL sem = conUsuarios();
+        CatalogoEsquema catalogo = sem.getCatalogo();
+        List<ErrorSemantico> errores = sem.modificarColumna("usuarios", col("ID", TipoToken.TIPO_DECIMAL, 5, 31));
+        ColumnaDeclarada id = catalogo.buscarColumna("usuarios", "id");
+        probar("MODIFICAR cambia el tipo", errores.isEmpty() && id.getTipoDato() == TipoToken.TIPO_DECIMAL);
+        probar("MODIFICAR conserva nombre, orden y posicion original", id.getNombre().equals("id")
+                && id.getLinea() == 1 && id.getColumna() == 23
+                && nombres(catalogo.columnasDe("usuarios")).equals(List.of("id", "nombre")));
+        errores = sem.modificarColumna("usuarios", col("fantasma", TipoToken.TIPO_TEXTO, 6, 31));
+        probar("MODIFICAR columna ausente no cambia el catalogo", codigos(errores).equals(List.of("SEM-104"))
+                && !catalogo.existeColumna("usuarios", "fantasma")
+                && catalogo.tipoDeColumna("usuarios", "id") == TipoToken.TIPO_DECIMAL);
+        errores = sem.modificarColumna("ausente", col("id", TipoToken.TIPO_TEXTO, 7, 31));
+        probar("MODIFICAR tabla ausente da SEM-103", codigos(errores).equals(List.of("SEM-103")));
+        errores = sem.modificarColumna("usuarios", null);
+        probar("MODIFICAR columna incompleta no aplica cambios", codigos(errores).equals(List.of("SEM-106"))
+                && catalogo.tipoDeColumna("usuarios", "id") == TipoToken.TIPO_DECIMAL);
+        probar("catalogo devuelve false al modificar objetos inexistentes",
+                !catalogo.modificarColumna("ausente", "id", TipoToken.TIPO_TEXTO)
+                        && !catalogo.modificarColumna("usuarios", "ausente", TipoToken.TIPO_TEXTO));
+    }
+
+    private static void ddlCompletoConScannerYParser() {
+        String script = "CREAR TABLA usuarios (id ENTERO, nombre TEXTO);\n"
+                + "CREAR TABLA productos (id ENTERO);\n"
+                + "ALTERAR TABLA usuarios AGREGAR activo BOOLEANO;\n"
+                + "ALTERAR TABLA usuarios MODIFICAR ID DECIMAL;\n"
+                + "ALTERAR TABLA usuarios QUITAR nombre;\n"
+                + "RENOMBRAR TABLA usuarios A clientes;";
+        List<Token> tokens = tokens(script);
+        TablaSimbolos simbolos = new TablaSimbolos();
+        simbolos.registrarTodos(tokens);
+        AnalizadorSemanticoDDL sem = new AnalizadorSemanticoDDL(new CatalogoEsquema(), simbolos);
+        ResultadoSintacticoDDL sintaxis = new AnalizadorSintacticoDDL().analizar(tokens);
+        List<ErrorSemantico> errores = sem.analizar(sintaxis.getSentencias());
+        CatalogoEsquema catalogo = sem.getCatalogo();
+        probar("parser y semantica aceptan ALTERAR y RENOMBRAR completos", sintaxis.esValido() && errores.isEmpty());
+        probar("AGREGAR y QUITAR modifican el esquema", nombres(catalogo.columnasDe("clientes"))
+                .equals(List.of("id", "activo")) && !catalogo.existeTabla("usuarios"));
+        probar("tipo modificado y declaracion original quedan en catalogo",
+                catalogo.tipoDeColumna("clientes", "id") == TipoToken.TIPO_DECIMAL
+                        && catalogo.buscarColumna("clientes", "id").getLinea() == 1
+                        && catalogo.buscarColumna("clientes", "id").getColumna() == 23);
+        probar("RENOMBRAR cambia ambitos y conserva orden de tablas",
+                catalogo.buscarColumna("clientes", "activo").getIdentidad().equals("clientes.activo")
+                        && catalogo.obtenerTablas().get(0).getNombre().equals("clientes")
+                        && catalogo.obtenerTablas().get(1).getNombre().equals("productos"));
+        probar("declaraciones nuevas actualizan simbolos lexicos",
+                simbolos.buscar("clientes").getCategoria() == CategoriaSimbolo.TABLA
+                        && simbolos.buscar("activo").getCategoria() == CategoriaSimbolo.COLUMNA
+                        && simbolos.buscar("activo").getTipoDato().equals("BOOLEANO"));
+
+        String invalidas = "ALTERAR TABLA clientes AGREGAR id FECHA;\n"
+                + "ALTERAR TABLA clientes MODIFICAR fantasma FECHA;\n"
+                + "RENOMBRAR TABLA clientes A productos;\n"
+                + "ALTERAR TABLA clientes QUITAR activo;\n"
+                + "ALTERAR TABLA clientes QUITAR id;\n"
+                + "ALTERAR TABLA ausente MODIFICAR id TEXTO;";
+        ResultadoSintacticoDDL segunda = new AnalizadorSintacticoDDL().analizar(tokens(invalidas));
+        errores = sem.analizar(segunda.getSentencias());
+        probar("DDL completos invalidos generan sus errores en orden", segunda.esValido()
+                && codigos(errores).equals(List.of("SEM-102", "SEM-104", "SEM-101", "SEM-105", "SEM-103")));
+        probar("errores no dejan cambios parciales", catalogo.cantidadTablas() == 2
+                && nombres(catalogo.columnasDe("clientes")).equals(List.of("id"))
+                && catalogo.tipoDeColumna("clientes", "id") == TipoToken.TIPO_DECIMAL
+                && !catalogo.existeColumna("clientes", "fantasma"));
+        probar("cada error se registra una sola vez", sem.getErrores().size() == errores.size());
+        probar("errores usan posicion del elemento original", errores.get(0).getLinea() == 1
+                && errores.get(0).getColumna() == 32 && errores.get(2).getLinea() == 3
+                && errores.get(2).getColumna() == 28);
+    }
+
+    private static void representacionesIncompletas() {
+        AnalizadorSemanticoDDL sem = conUsuarios();
+        Token tabla = new Token(TipoToken.IDENTIFICADOR, "usuarios", 9, 1);
+        Token nuevo = new Token(TipoToken.IDENTIFICADOR, "clientes", 9, 30);
+        List<SentenciaDDL> invalidas = List.of(
+                new SentenciaDDL(TipoSentenciaDDL.ALTERAR_TABLA, tabla, List.of(), 9, 1, "AGREGAR", null),
+                new SentenciaDDL(TipoSentenciaDDL.ALTERAR_TABLA, tabla, List.of(), 9, 1, "QUITAR", null),
+                new SentenciaDDL(TipoSentenciaDDL.ALTERAR_TABLA, tabla,
+                        List.of(col("edad", TipoToken.TIPO_ENTERO, 9, 30)), 9, 1, "CAMBIAR", null),
+                new SentenciaDDL(TipoSentenciaDDL.RENOMBRAR_TABLA, tabla, List.of(), 9, 1, "", null),
+                new SentenciaDDL(TipoSentenciaDDL.RENOMBRAR_TABLA, tabla,
+                        List.of(col("edad", TipoToken.TIPO_ENTERO, 9, 30)), 9, 1, "", nuevo),
+                crear("vacía", 9, 1));
+        for (SentenciaDDL invalida : invalidas) {
+            probar("rechaza AST DDL incompleto o contradictorio", codigos(sem.analizarSentencia(invalida))
+                    .equals(List.of("SEM-106")));
+        }
+        probar("AST invalidos conservan catalogo", sem.getCatalogo().cantidadTablas() == 1
+                && nombres(sem.getCatalogo().columnasDe("usuarios")).equals(List.of("id", "nombre")));
+    }
+
     private static void formatoDeErrores() {
         AnalizadorSemanticoDDL sem = conUsuarios();
         sem.analizarSentencia(crear("usuarios", 4, 1, col("x", TipoToken.TIPO_ENTERO, 4, 23)));
@@ -253,7 +350,7 @@ public class PruebaSemanticaDDL {
                 + "CREAR TABLA pedidos (id ENTERO, id FECHA);\n"
                 + "TRUNCAR TABLA usuarios;\n"
                 + "ELIMINAR TABLA productos;\n"
-                + "ALTERAR TABLA productos;\n"
+                + "ALTERAR TABLA productos AGREGAR activo BOOLEANO;\n"
                 + "CREAR TABLA roto (id);";
         ResultadoSintacticoDDL sintaxis = new AnalizadorSintacticoDDL().analizar(tokens(script));
         AnalizadorSemanticoDDL sem = nuevo();

@@ -70,6 +70,6 @@ public final class ColumnaDDL {
 
     @Override
     public String toString() {
-        return nombre + " " + tipoDato;
+        return nombre + " " + tipoDato.name().substring("TIPO_".length());
     }
 }

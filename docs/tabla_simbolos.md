@@ -84,11 +84,12 @@ Distinguir ámbitos exige saber la estructura de la sentencia, y eso es análisi
 sintáctico. En la Fase 1 la tabla es de un solo ámbito global. Los campos
 `categoria` y `tipoDato` ya existen y nacen en `DESCONOCIDA` / `DESCONOCIDO`;
 se refinan con `actualizarCategoria(...)` y `actualizarTipoDato(...)` cuando la
-Fase 2 pueda determinarlos.
+Fase 2 los determina mediante las declaraciones válidas.
 
-En la fase 2 los ambitos ya se manejan en `CatalogoEsquema` (cada columna esta
-dentro de su tabla). Esta tabla sigue guardando los nombres que vio el scanner y
-la semantica DDL les pone la categoria con `marcarDeclarado(...)`. Ver
+En la fase 2 los ámbitos ya se manejan en `CatalogoSemantico` dentro del
+recorrido completo, y en `CatalogoEsquema` mediante las APIs del equipo.
+Cada columna pertenece a su tabla. La tabla léxica sigue guardando los nombres
+observados; la API DDL puede clasificarlos con `marcarDeclarado(...)`. Ver
 [Simbolos y semantica DDL](semantica_ddl.md).
 
 ---

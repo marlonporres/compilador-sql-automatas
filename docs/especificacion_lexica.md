@@ -55,6 +55,11 @@ unifica sus apariciones sin distinguir mayúsculas y conserva la primera posici�
 Palabras no incluidas en el catálogo, como `NULO` o `LLAVE`, son identificadores;
 no se incorporan como nuevas reservadas.
 
+En fase 2, el parser reconoce palabras de contexto a partir de IDENTIFICADOR:
+AGREGAR, MODIFICAR, QUITAR y A para DDL; VERDADERO y FALSO como booleanos
+en posiciones de valor. El scanner conserva su catálogo original y las
+pruebas de fase 1. Consulte la gramática en [fase2.md](fase2.md).
+
 Ejemplos válidos:
 
 `usuarios`

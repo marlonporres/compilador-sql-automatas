@@ -50,7 +50,7 @@ public class CursorTokens {
 
     public Token avanzar() {
         Token actual = ver();
-        if (posicion < tokens.size()) {
+        if (!estaAlFinal()) {
             posicion++;
         }
         return actual;
@@ -79,7 +79,13 @@ public class CursorTokens {
         }
     }
 
-    private static Token tokenEOF() {
+    private Token tokenEOF() {
+        if (!tokens.isEmpty()) {
+            Token ultimo = tokens.get(tokens.size() - 1);
+            if (ultimo.getTipo() == TipoToken.FIN_DE_ARCHIVO) return ultimo;
+            return new Token(TipoToken.FIN_DE_ARCHIVO, "EOF", ultimo.getlinea(),
+                    ultimo.getcolumna() + ultimo.getLexema().length());
+        }
         return new Token(TipoToken.FIN_DE_ARCHIVO, "EOF", 1, 1);
     }
 }

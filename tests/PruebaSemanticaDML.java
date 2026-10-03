@@ -2,6 +2,7 @@ import java.util.List;
 
 import lexer.ScannerSQL;
 import lexer.Token;
+import lexer.AnalizadorDML;
 import semantic.ErrorCompilacion;
 import semantic.ReporteCompilacion;
 import semantic.SemanticaDML;
@@ -31,6 +32,10 @@ public class PruebaSemanticaDML {
         pruebaBorrar(catalogo);
         pruebaNoAnalizaSentenciaSintacticamenteInvalida(catalogo);
         pruebaReporteComun(catalogo);
+        pruebaRecuperacionEnLaMismaLinea(catalogo);
+        pruebaFechaBooleanoYNumeros();
+        pruebaOperandosYAsignaciones(catalogo);
+        pruebaSoloLiteralesEnValores(catalogo);
 
         System.out.println();
         System.out.println("Pruebas: " + total + "   Fallidas: " + fallidas);
@@ -117,6 +122,109 @@ public class PruebaSemanticaDML {
         probar("el reporte conserva fase, codigo y posicion", errores.size() == 1
                 && reporte.contains("[SEMANTICA][SEM-201]")
                 && reporte.contains("L:1 C:"));
+    }
+
+    private static void pruebaRecuperacionEnLaMismaLinea(CatalogoEsquema catalogo) {
+        String script = "INSERTAR EN usuarios VALORES (1,); "
+                + "SELECCIONAR fantasma DESDE usuarios;";
+        List<ErrorCompilacion> errores = analizar(catalogo, script);
+        probar("error sintactico no oculta error semantico posterior en la misma linea",
+                errores.size() == 1 && tieneCodigo(errores, "SEM-202")
+                && errores.getFirst().getLinea() == 1
+                && errores.getFirst().getElemento().equals("fantasma"));
+
+        List<Token> entrada = tokens(script);
+        errores = new SemanticaDML(catalogo).analizar(entrada,
+                new AnalizadorDML().analizar(entrada));
+        probar("sobrecarga con errores sintacticos conserva la otra sentencia de la misma linea",
+                errores.size() == 1 && tieneCodigo(errores, "SEM-202")
+                && errores.getFirst().getElemento().equals("fantasma"));
+    }
+
+    private static void pruebaFechaBooleanoYNumeros() {
+        CatalogoEsquema catalogo = catalogoCincoTipos();
+        probar("INSERTAR admite fecha real, VERDADERO y falso con cinco tipos",
+                analizar(catalogo,
+                        "INSERTAR EN datos VALORES (1, 'Ana', 10, '2024-02-29', VERDADERO);"
+                        + "INSERTAR EN datos VALORES (2, 'Luis', 10.5, '2025-01-01', falso);")
+                        .isEmpty());
+
+        for (String fecha : List.of("2023-02-29", "2024-02-30", "2024-2-01")) {
+            List<ErrorCompilacion> errores = analizar(catalogo,
+                    "INSERTAR EN datos (nacimiento) VALORES ('" + fecha + "');");
+            probar("FECHA rechaza calendario o formato invalido: " + fecha,
+                    errores.size() == 1 && tieneCodigo(errores, "SEM-204"));
+        }
+
+        probar("BOOLEANO rechaza un numero",
+                tieneCodigo(analizar(catalogo,
+                        "ACTUALIZAR datos ASIGNAR activo = 1;"), "SEM-204"));
+        probar("BOOLEANO distingue literal booleano de cadena",
+                tieneCodigo(analizar(catalogo,
+                        "ACTUALIZAR datos ASIGNAR activo = 'VERDADERO';"), "SEM-204"));
+        probar("FECHA permite comparar fechas ISO con orden",
+                analizar(catalogo, "SELECCIONAR * DESDE datos DONDE "
+                        + "nacimiento >= '2024-02-29' Y nacimiento < '2026-01-01';").isEmpty());
+        probar("una condicion FECHA tambien valida el calendario",
+                tieneCodigo(analizar(catalogo, "SELECCIONAR * DESDE datos "
+                        + "DONDE nacimiento = '2023-02-29';"), "SEM-204"));
+        probar("condiciones admiten igualdad y desigualdad BOOLEANO",
+                analizar(catalogo, "BORRAR DESDE datos DONDE "
+                        + "activo = VERDADERO O activo != FALSO;").isEmpty());
+        probar("comparacion ordenada BOOLEANO da SEM-205",
+                tieneCodigo(analizar(catalogo, "SELECCIONAR * DESDE datos "
+                        + "DONDE activo > FALSO;"), "SEM-205"));
+        probar("condiciones numericas admiten ENTERO y DECIMAL en ambos lados",
+                analizar(catalogo, "SELECCIONAR * DESDE datos "
+                        + "DONDE id < precio Y precio >= id;").isEmpty());
+    }
+
+    private static void pruebaOperandosYAsignaciones(CatalogoEsquema catalogo) {
+        List<ErrorCompilacion> errores = analizar(catalogo,
+                "SELECCIONAR * DESDE usuarios DONDE 1 = fantasma;");
+        probar("literal a la izquierda no oculta columna inexistente a la derecha",
+                errores.size() == 1 && tieneCodigo(errores, "SEM-202")
+                && errores.getFirst().getElemento().equals("fantasma"));
+
+        errores = analizar(catalogo,
+                "ACTUALIZAR usuarios ASIGNAR nombre = 'Ana', NOMBRE = 'Luis';");
+        probar("asignaciones duplicadas sin distinguir mayusculas dan SEM-203",
+                errores.size() == 1 && tieneCodigo(errores, "SEM-203"));
+
+        probar("condiciones anidadas validan ambos operandos y ramas logicas",
+                analizar(catalogoCincoTipos(), "SELECCIONAR * DESDE datos DONDE "
+                        + "NO ((id = precio O precio > 1) "
+                        + "Y (activo = VERDADERO Y nombre != 'Luis'));").isEmpty());
+
+        errores = analizar(catalogo, "SELECCIONAR * DESDE usuarios DONDE "
+                + "(NO (izquierda = 1) Y (id = derecha O nombre = 'Ana'));");
+        probar("condiciones anidadas detectan columnas de izquierda y derecha",
+                cuentaCodigo(errores, "SEM-202") == 2
+                && errores.stream().anyMatch(e -> e.getElemento().equals("izquierda"))
+                && errores.stream().anyMatch(e -> e.getElemento().equals("derecha")));
+    }
+
+    private static void pruebaSoloLiteralesEnValores(CatalogoEsquema catalogo) {
+        for (String script : List.of(
+                "INSERTAR EN usuarios (id) VALORES (id);",
+                "ACTUALIZAR usuarios ASIGNAR id = id;")) {
+            List<Token> entrada = tokens(script);
+            probar("valores no literales se rechazan antes de semantica: " + script,
+                    !new AnalizadorDML().analizar(entrada).isEmpty()
+                    && new SemanticaDML(catalogo).analizar(entrada).isEmpty());
+        }
+    }
+
+    private static CatalogoEsquema catalogoCincoTipos() {
+        CatalogoEsquema catalogo = new CatalogoEsquema();
+        AnalizadorSemanticoDDL ddl = new AnalizadorSemanticoDDL(catalogo);
+        ddl.analizarSentencia(new SentenciaDDL(TipoSentenciaDDL.CREAR_TABLA, "datos",
+                List.of(new ColumnaDDL("id", TipoToken.TIPO_ENTERO, 1, 20),
+                        new ColumnaDDL("nombre", TipoToken.TIPO_TEXTO, 1, 31),
+                        new ColumnaDDL("precio", TipoToken.TIPO_DECIMAL, 1, 45),
+                        new ColumnaDDL("nacimiento", TipoToken.TIPO_FECHA, 1, 61),
+                        new ColumnaDDL("activo", TipoToken.TIPO_BOOLEANO, 1, 79)), 1, 1));
+        return catalogo;
     }
 
     private static CatalogoEsquema catalogoBase() {
