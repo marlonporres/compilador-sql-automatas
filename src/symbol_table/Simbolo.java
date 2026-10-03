@@ -9,6 +9,8 @@ import lexer.Token;
 public class Simbolo {
 
     public static final String TIPO_DATO_DESCONOCIDO = "DESCONOCIDO";
+    //fase 2: cuando la misma columna esta en varias tablas con distinto tipo
+    public static final String TIPO_DATO_VARIOS = "VARIOS";
 
     private final int id;
     private final String nombre;        //como se escribio la primera vez
@@ -91,16 +93,16 @@ public class Simbolo {
 
     //Recibe TIPO_ENTERO y guarda solo ENTERO, para que se vea mejor en la tabla.
     public void setTipoDato(TipoToken tipoDeDato) {
+        this.tipoDato = nombreTipo(tipoDeDato);
+    }
+
+    //lo saque aparte porque el catalogo tambien lo usa
+    public static String nombreTipo(TipoToken tipoDeDato) {
         if (tipoDeDato == null) {
-            this.tipoDato = TIPO_DATO_DESCONOCIDO;
-            return;
+            return TIPO_DATO_DESCONOCIDO;
         }
         String nombreTipo = tipoDeDato.name();
-        if (nombreTipo.startsWith("TIPO_")) {
-            this.tipoDato = nombreTipo.substring(5);
-        } else {
-            this.tipoDato = nombreTipo;
-        }
+        return nombreTipo.startsWith("TIPO_") ? nombreTipo.substring(5) : nombreTipo;
     }
 
     public int getApariciones() {
