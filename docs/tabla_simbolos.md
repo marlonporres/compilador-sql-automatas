@@ -86,6 +86,11 @@ sintáctico. En la Fase 1 la tabla es de un solo ámbito global. Los campos
 se refinan con `actualizarCategoria(...)` y `actualizarTipoDato(...)` cuando la
 Fase 2 pueda determinarlos.
 
+En la fase 2 los ambitos ya se manejan en `CatalogoEsquema` (cada columna esta
+dentro de su tabla). Esta tabla sigue guardando los nombres que vio el scanner y
+la semantica DDL les pone la categoria con `marcarDeclarado(...)`. Ver
+[Simbolos y semantica DDL](semantica_ddl.md).
+
 ---
 
 ## 4. API pública de `TablaSimbolos`
@@ -111,6 +116,10 @@ Fase 2 pueda determinarlos.
 `eliminar(String)`, `actualizarTipoDato(String, String)`,
 `actualizarTipoDato(String, TipoToken)`, `actualizarCategoria(String, CategoriaSimbolo)`,
 `limpiar()`.
+
+Fase 2: `marcarDeclarado(String, CategoriaSimbolo, TipoToken)` le pone categoria
+y tipo a un nombre cuando se declara bien. Si la misma columna esta en varias
+tablas con tipos distintos queda `VARIOS`.
 
 ### Salida
 `toString()` devuelve la tabla formateada; `imprimir()` la envía a consola.

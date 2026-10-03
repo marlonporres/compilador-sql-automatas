@@ -37,6 +37,19 @@ condiciones con operadores relacionales y logicos; devuelve errores sintacticos
 con linea y columna. Valida la estructura, pero no ejecuta consultas ni modifica
 datos.
 
+## Simbolos y semantica DDL
+
+`symbol_table.CatalogoEsquema` guarda las tablas y columnas que se declararon
+bien, con su tipo y su ambito (`usuarios.id` y `productos.id` son columnas
+distintas). `semantic.AnalizadorSemanticoDDL` revisa en orden las sentencias del
+parser DDL (tablas repetidas o que no existen, columnas repetidas) y solo aplica
+las que estan bien. El script de demostracion es `tests/demo_fase2.sql`.
+
+```sh
+javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out src/lexer/*.java src/parser/*.java src/symbol_table/*.java src/semantic/*.java tests/PruebaSemanticaDDL.java
+java -cp out PruebaSemanticaDDL
+```
+
 ## Compilación y ejecución
 
 Requiere **JDK 21**. Desde la raíz del repositorio:
@@ -72,10 +85,8 @@ java -cp out PruebaAnalizadorDML
   Ejecuta `Main` en procesos separados con DDL/DML válidos, archivos con errores,
   archivos vacíos, argumentos incorrectos y archivos ilegibles. Usa archivos temporales que elimina
   al terminar; no requiere dependencias ni generadores.
-- Fase 2: la clasificación semántica de identificadores aún está en preparación.
-  La tabla de símbolos ya admite categorías como `TABLA` y `COLUMNA`, y la siguiente
-  etapa consiste en completar la validación del contexto, alcance y consistencia
-  de referencias para distinguir correctamente cada símbolo dentro de las sentencias SQL.
+- Semantica DDL: 48 pruebas del catalogo, las reglas de los comandos DDL, los
+  errores y la clasificacion de la tabla de simbolos.
 
 Ambas pruebas deben terminar con código `0` y `Fallidas: 0`; un fallo produce
 código `1`. `PruebaFase1` debe ejecutarse desde la raíz para encontrar `tests/`.
@@ -85,3 +96,4 @@ código `1`. `PruebaFase1` debe ejecutarse desde la raíz para encontrar `tests/
 - [Especificación léxica](docs/especificacion_lexica.md)
 - [Tabla de símbolos](docs/tabla_simbolos.md)
 - [Analizador sintáctico DDL](docs/parser_ddl.md)
+- [Simbolos y semantica DDL](docs/semantica_ddl.md)
