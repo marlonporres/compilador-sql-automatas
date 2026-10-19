@@ -1,0 +1,20 @@
+-- Equivalente SQL estándar, ejecutado sobre otra base independiente.
+CREATE TABLE usuarios (id INTEGER, nombre VARCHAR(200), salario DECIMAL(20,2), nacimiento DATE, activo BOOLEAN);
+CREATE TABLE temporal (id INTEGER);
+INSERT INTO usuarios VALUES (1, 'Ana', 1250.50, '2000-02-29', TRUE);
+INSERT INTO usuarios VALUES (2, 'Luis', 900.25, '1999-10-15', FALSE);
+SELECT nombre, salario FROM usuarios WHERE salario >= 1000 AND NOT (activo = FALSE) OR id = 2;
+UPDATE usuarios SET salario = 1500.75, activo = TRUE WHERE id = 2;
+SELECT * FROM usuarios;
+ALTER TABLE usuarios ADD COLUMN correo VARCHAR(200);
+UPDATE usuarios SET correo = 'ana@ejemplo.com' WHERE id = 1;
+ALTER TABLE temporal ALTER COLUMN id DECIMAL(20,2);
+INSERT INTO temporal VALUES (1.25);
+ALTER TABLE usuarios DROP COLUMN correo;
+ALTER TABLE usuarios RENAME TO clientes;
+DELETE FROM clientes WHERE id = 2;
+SELECT * FROM clientes;
+TRUNCATE TABLE clientes;
+SELECT * FROM clientes;
+DROP TABLE temporal;
+SELECT nombre FROM clientes;

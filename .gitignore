@@ -30,3 +30,7 @@ output/
 .codex/
 node_modules/
 .DS_Store
+
+# Dependencia fijada para que la demostracion funcione sin Internet
+!lib/h2-2.4.240.jar
+!lib/flatlaf-3.6.2.jar

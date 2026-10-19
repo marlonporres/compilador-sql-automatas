@@ -1,0 +1,20 @@
+-- Demostración real: nueve comandos, cinco tipos, esquema y filas.
+CREAR TABLA usuarios (id ENTERO, nombre TEXTO, salario DECIMAL, nacimiento FECHA, activo BOOLEANO);
+CREAR TABLA temporal (id ENTERO);
+INSERTAR EN usuarios VALORES (1, 'Ana', 1250.50, '2000-02-29', VERDADERO);
+INSERTAR EN usuarios VALORES (2, 'Luis', 900.25, '1999-10-15', FALSO);
+SELECCIONAR nombre, salario DESDE usuarios DONDE salario >= 1000 Y NO (activo = FALSO) O id = 2;
+ACTUALIZAR usuarios ASIGNAR salario = 1500.75, activo = VERDADERO DONDE id = 2;
+SELECCIONAR * DESDE usuarios;
+ALTERAR TABLA usuarios AGREGAR correo TEXTO;
+ACTUALIZAR usuarios ASIGNAR correo = 'ana@ejemplo.com' DONDE id = 1;
+ALTERAR TABLA temporal MODIFICAR id DECIMAL;
+INSERTAR EN temporal VALORES (1.25);
+ALTERAR TABLA usuarios QUITAR correo;
+RENOMBRAR TABLA usuarios A clientes;
+BORRAR DESDE clientes DONDE id = 2;
+SELECCIONAR * DESDE clientes;
+TRUNCAR TABLA clientes;
+SELECCIONAR * DESDE clientes;
+ELIMINAR TABLA temporal;
+SELECCIONAR nombre DESDE clientes;

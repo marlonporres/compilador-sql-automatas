@@ -65,6 +65,9 @@ public class PruebaFase1 {
         tipos("@ nombre; ! otro", "ERROR IDENTIFICADOR PUNTO_Y_COMA ERROR IDENTIFICADOR");
         token(analizar("85.5.2").get(0), TipoToken.ERROR, "85.5.2", 1, 1);
         token(analizar("'Carlos'").get(0), TipoToken.LITERAL_CADENA, "Carlos", 1, 1);
+        token(analizar("'O''Brien' id").get(0), TipoToken.LITERAL_CADENA, "O'Brien", 1, 1);
+        token(analizar("'O''Brien' id").get(1), TipoToken.IDENTIFICADOR, "id", 1, 12);
+        tipos("'texto'' sin cierre", "ERROR");
     }
 
     private static void posicionesYComentarios() {

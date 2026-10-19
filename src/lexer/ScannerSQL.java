@@ -81,7 +81,7 @@ public class ScannerSQL {
                 int filaInicio = fila;
                 int colInicio = columna;
                 i += 2;
-                columna += 2; 
+                columna += 2;
                 while (i < entrada.length() && !(entrada.charAt(i) == '*' && i + 1 < entrada.length() && entrada.charAt(i + 1) == '/')) {
                     int salto = longitudSalto(entrada, i);
                     if (salto > 0) {
@@ -158,7 +158,16 @@ public class ScannerSQL {
                 int colInicio = columna;
                 i++; // Saltar el primer apóstrofe
                 columna++;
-                while (i < entrada.length() && entrada.charAt(i) != '\'') {
+                while (i < entrada.length()) {
+                    if (entrada.charAt(i) == '\'') {
+                        if (i + 1 < entrada.length() && entrada.charAt(i + 1) == '\'') {
+                            cadena.append('\'');
+                            i += 2;
+                            columna += 2;
+                            continue;
+                        }
+                        break;
+                    }
                     int salto = longitudSalto(entrada, i);
                     if (salto > 0) {
                         cadena.append(entrada, i, i + salto);
