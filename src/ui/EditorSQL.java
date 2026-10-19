@@ -20,7 +20,7 @@ import javax.swing.text.StyledDocument;
 public final class EditorSQL extends JPanel {
     private static final long serialVersionUID = 1L;
     private static final Pattern COLORES = Pattern.compile(
-            "/\\*[\\s\\S]*?\\*/|--[^\\r\\n]*|'(?:''|[^'])*'|"
+            "/\\*[\\s\\S]*?\\*/|--[^\\r\\n]*|'(?:''|[^'])*+'|"
             + "\\b(?i:CREAR|TABLA|ALTERAR|AGREGAR|MODIFICAR|QUITAR|ELIMINAR|TRUNCAR|RENOMBRAR|A|"
             + "SELECCIONAR|DESDE|INSERTAR|EN|VALORES|ACTUALIZAR|ASIGNAR|BORRAR|DONDE|Y|O|NO|"
             + "ENTERO|DECIMAL|TEXTO|FECHA|BOOLEANO|VERDADERO|FALSO|CREATE|TABLE|SELECT|FROM|"

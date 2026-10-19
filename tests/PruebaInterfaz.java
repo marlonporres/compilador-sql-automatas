@@ -129,6 +129,21 @@ public final class PruebaInterfaz {
             comprobar("limpiar borra referencia", enUI(() -> ventana.editorReferencia().texto().isEmpty()));
             comprobar("limpiar borra tablas", enUI(() -> ventana.panelAnalisis().cantidadErrores() == 0));
             comprobar("limpiar deshabilita ejecutar", !enUI(() -> ventana.botonEjecutar().isEnabled()));
+            AtomicReference<Throwable> errorPintura = new AtomicReference<>();
+            Thread.UncaughtExceptionHandler manejadorAnterior = Thread.getDefaultUncaughtExceptionHandler();
+            Thread.setDefaultUncaughtExceptionHandler((hilo, error) -> errorPintura.set(error));
+            try {
+                enUI(() -> { ventana.editorFuente().texto("'" + "x".repeat(50000) + "'"); return null; });
+                Thread.sleep(500);
+                comprobar("resaltar literal largo no desborda la pila", errorPintura.get() == null);
+                enUI(() -> { ventana.editorFuente().texto("'" + "''".repeat(25000) + "'"); return null; });
+                Thread.sleep(500);
+                comprobar("resaltar escapes largos mantiene interfaz disponible", errorPintura.get() == null
+                        && enUI(() -> ventana.editorFuente().campo().isEditable()));
+            } finally {
+                Thread.setDefaultUncaughtExceptionHandler(manejadorAnterior);
+                enUI(() -> { ventana.botonLimpiar().doClick(); return null; });
+            }
             enUI(() -> {
                 ventana.setSize(1000, 690);
                 ventana.validate();

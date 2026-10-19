@@ -14,7 +14,7 @@ ni instalar un servidor. Requiere **JDK 21 o posterior**.
 3. Pulsa **Comparar SQL**: el ejemplo de 19 sentencias debe aprobarse.
 4. Prueba **Ejemplo con errores**: la interfaz señala los errores y bloquea Ejecutar.
 
-**VERIFICAR_FASE3.cmd** ejecuta las once suites: **524 comprobaciones, cero fallos**.
+**VERIFICAR_FASE3.cmd** ejecuta las once suites: **526 comprobaciones, cero fallos**.
 Cada ejecución usa una base temporal nueva; los scripts incluyen sus declaraciones.
 
 - [Guía del integrante 1 y plan de once días](docs/guia_integrante1.md).

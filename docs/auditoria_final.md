@@ -8,7 +8,7 @@ comparación de ejecuciones. No había ramas de fase 3 ni PR abiertos en GitHub
 al consultar el repositorio el 19/10/2026.
 
 Se completó la fase 3 sobre esa base. La verificación final local reúne
-**524 comprobaciones aprobadas, cero fallos**, en once suites. La compilación
+**526 comprobaciones aprobadas, cero fallos**, en once suites. La compilación
 usa `--release 21 -encoding UTF-8 -Xlint:all -Werror`; en este equipo se ejecutó
 con JDK 25.0.3. El flujo de GitHub verifica además el proyecto con JDK 21.
 
@@ -39,6 +39,9 @@ de esquema y datos aunque no exista un SELECT final.
   `'O''Brien'` produce un solo token `O'Brien`, con posiciones correctas.
 - Las líneas largas podían envolver el editor y desalinear su numeración.
   Ahora tienen desplazamiento horizontal y posiciones verificadas.
+- El resaltado de cadenas largas podía desbordar la pila. Una coincidencia sin
+  retroceso evita ese fallo; se prueban 50 000 caracteres y escapes repetidos
+  con el editor real y su temporizador.
 - Cambiar código o referencia podía conservar un estado visual anterior.
   Se invalidan análisis y comparaciones según el contenido modificado.
 - Una selección antigua de JTable generaba un aviso al insertar un error.
@@ -63,8 +66,8 @@ de esquema y datos aunque no exista un SELECT final.
 | Delimitadores | 54 | 0 |
 | Ejecución SQL | 63 | 0 |
 | Paneles GUI | 28 | 0 |
-| Ventana y controles | 40 | 0 |
-| **Total** | **524** | **0** |
+| Ventana y controles | 42 | 0 |
+| **Total** | **526** | **0** |
 
 Windows: `VERIFICAR_FASE3.cmd`. Equivalente: `powershell -NoProfile
 -ExecutionPolicy Bypass -File .\gui.ps1 -Modo pruebas` en una sola línea.
