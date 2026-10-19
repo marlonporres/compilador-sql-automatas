@@ -1,4 +1,4 @@
-name: Pruebas de Java 21 y fase 2
+name: Compilador Java 21 - fases 1, 2 y 3
 
 on:
   push:
@@ -19,12 +19,21 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Compilar sin advertencias y ejecutar las ocho suites
+      - name: Verificar dependencias y compilar sin advertencias
         shell: bash
         run: |
+          echo '29b70e427cc1c40cdc376283adbb0cc62853073797bb5fe5761f81fe73d57ce0  lib/h2-2.4.240.jar' | sha256sum -c -
+          echo '32c79dee6d51341a3f8603598415841b4461fe535de2c34bcc8ee40e91e72267  lib/flatlaf-3.6.2.jar' | sha256sum -c -
           mkdir -p out
           git ls-files -- '*.java' > fuentes.txt
           javac --release 21 -encoding UTF-8 -Xlint:all -Werror -d out @fuentes.txt
-          for suite in symbol_table.PruebaTablaSimbolos PruebaFase1 PruebaParserDDL PruebaFase2 PruebaAnalizadorDML PruebaSemanticaDDL PruebaSemanticaDML PruebaDelimitadores; do
-            java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp out "$suite"
+      - name: Probar lexico, sintaxis, semantica, SQL y paneles
+        shell: bash
+        run: |
+          for suite in symbol_table.PruebaTablaSimbolos PruebaFase1 PruebaParserDDL PruebaFase2 PruebaAnalizadorDML PruebaSemanticaDDL PruebaSemanticaDML PruebaDelimitadores PruebaEjecucionSQL PruebaPanelesGUI; do
+            java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp 'out:lib/*' "$suite"
           done
+      - name: Probar ventana y botones en escritorio virtual
+        run: xvfb-run -a java -Dfile.encoding=UTF-8 -cp 'out:lib/*' PruebaInterfaz
+      - name: Comparar la demostracion con SQL independiente
+        run: java -Dfile.encoding=UTF-8 -cp 'out:lib/*' cli.Fase3CLI tests/demo_fase3.sql tests/demo_fase3_referencia.sql

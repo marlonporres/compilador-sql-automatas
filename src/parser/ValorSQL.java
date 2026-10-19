@@ -35,6 +35,6 @@ public final class ValorSQL {
 
     @Override
     public String toString() {
-        return tipo == TipoToken.LITERAL_CADENA ? "'" + lexema + "'" : lexema;
+        return tipo == TipoToken.LITERAL_CADENA ? "'" + lexema.replace("'", "''") + "'" : lexema;
     }
 }

@@ -49,7 +49,7 @@ public final class CondicionSQL {
 
     private static String texto(Token token) {
         return token.getTipo() == lexer.TipoToken.LITERAL_CADENA
-                ? "'" + token.getLexema() + "'" : token.getLexema();
+                ? "'" + token.getLexema().replace("'", "''") + "'" : token.getLexema();
     }
 
     public List<Token> getReferencias() {

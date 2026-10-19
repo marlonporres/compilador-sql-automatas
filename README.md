@@ -1,6 +1,31 @@
 # compilador-sql-automatas
 Proyecto Final - Autómatas y Lenguajes Formales (Java)
 
+## Proyecto final: interfaz y ejecución SQL
+
+En Windows, abre **ABRIR_GUI.cmd**. Compila y abre **SQL Studio**, con editor,
+tokens, símbolos, errores, ejecución real y comparación contra SQL de referencia.
+Los dos controladores incluidos en `lib/` permiten demostrarlo sin Internet
+ni instalar un servidor. Requiere **JDK 21 o posterior**.
+
+1. Pulsa **Ejemplo completo** y **Analizar**.
+2. Pulsa **Ejecutar**; en **SQL y resultados**, selecciona una consulta anterior
+   al TRUNCAR para ver registros.
+3. Pulsa **Comparar SQL**: el ejemplo de 19 sentencias debe aprobarse.
+4. Prueba **Ejemplo con errores**: la interfaz señala los errores y bloquea Ejecutar.
+
+**VERIFICAR_FASE3.cmd** ejecuta las once suites: **524 comprobaciones, cero fallos**.
+Cada ejecución usa una base temporal nueva; los scripts incluyen sus declaraciones.
+
+- [Guía del integrante 1 y plan de once días](docs/guia_integrante1.md).
+- [Fase 3: arquitectura, contratos y alcance](docs/fase3.md).
+- [Auditoría y evidencia de verificación](docs/auditoria_final.md).
+- [Dependencias incluidas y huellas](lib/README.md).
+
+Desde PowerShell también puedes usar `powershell -NoProfile -ExecutionPolicy Bypass -File .\gui.ps1 -Modo pruebas`.
+El modo `demo` verifica la comparación sin abrir la ventana; `capturas` prueba
+sus controles y guarda imágenes en `output/fase3/capturas/`.
+
 ## Demostración de fase 2
 
 En Windows, haga doble clic en **DEMOSTRAR.cmd**. Compila el proyecto y abre
@@ -55,7 +80,7 @@ clientes; el negativo tiene 1 error léxico, 1 sintáctico y 6 semánticos.
 
 ## Pruebas
 
-Las ocho suites reúnen **390 comprobaciones**. En Windows, la opción 1 de
+Las ocho suites de fases 1 y 2 reúnen **393 comprobaciones**. En Windows, la opción 1 de
 DEMOSTRAR.cmd las ejecuta todas. GitHub también las verifica con Java 21 en
 cada publicación a `main` y en los pull requests dirigidos a esa rama.
 
@@ -73,7 +98,7 @@ java -cp out PruebaDelimitadores
 ```
 
 - Tabla de símbolos: 50 comprobaciones aisladas.
-- Fase 1: 79 comprobaciones de reservadas, identificadores, literales, operadores,
+- Fase 1: 82 comprobaciones de reservadas, identificadores, literales, operadores,
   errores, comentarios, posiciones, reutilización del scanner e integración.
   Ejecuta `Main` en procesos separados con DDL/DML válidos, archivos con errores,
   archivos vacíos, argumentos incorrectos y archivos ilegibles. Usa archivos temporales que elimina
@@ -103,3 +128,5 @@ código `1`. Ejecute desde la raíz para encontrar `tests/`.
 - [Símbolos y semántica DDL del equipo](docs/semantica_ddl.md)
 - [Semántica DML y errores del equipo](docs/semantica_dml_errores.md)
 - [Instructivo de demostración](docs/instructivo_demostracion.md)
+- [Fase 3 e interfaz gráfica](docs/fase3.md)
+- [Guía del integrante 1](docs/guia_integrante1.md)

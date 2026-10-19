@@ -86,9 +86,10 @@ Texto delimitado por comillas simples.
 
 Ejemplo: `'Carlos'`
 
-El lexema del token contiene el texto sin las comillas. Se conserva el comportamiento
-existente: la cadena puede atravesar saltos de línea y termina en la siguiente
-comilla simple. No hay escapes de comillas. Si no se encuentra el cierre, se genera
+El lexema del token contiene el texto sin las comillas. La cadena puede atravesar
+saltos de línea. Dos comillas simples consecutivas dentro del literal representan
+un apóstrofe: `'O''Brien'` produce el lexema `O'Brien`. Una comilla simple no
+duplicada cierra la cadena. Si no se encuentra el cierre, se genera
 un `ERROR` desde la posición de apertura y se consume hasta el fin del archivo.
 
 ---
