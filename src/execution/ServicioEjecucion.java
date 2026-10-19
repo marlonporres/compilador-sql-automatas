@@ -156,7 +156,12 @@ public final class ServicioEjecucion {
                 String tabla = tablas.getString("TABLE_NAME");
                 String clave = tabla.toLowerCase(Locale.ROOT);
                 List<String> columnas = new ArrayList<>();
-                try (ResultSet campos = meta.getColumns(null, "PUBLIC", tabla, "%")) {
+                // JDBC interpreta '_' y '%' como comodines en tableNamePattern.
+                // Una tabla t_a no debe incorporar también las columnas de tba.
+                String escape = meta.getSearchStringEscape();
+                String tablaExacta = tabla.replace(escape, escape + escape)
+                        .replace("_", escape + "_").replace("%", escape + "%");
+                try (ResultSet campos = meta.getColumns(null, "PUBLIC", tablaExacta, "%")) {
                     while (campos.next()) columnas.add(campos.getString("COLUMN_NAME").toLowerCase(Locale.ROOT)
                             + ":" + (campos.getString("TYPE_NAME").equalsIgnoreCase("DECFLOAT") ? "DECIMAL"
                                     : familia(campos.getInt("DATA_TYPE"), campos.getInt("DECIMAL_DIGITS"))));

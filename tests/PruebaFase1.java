@@ -90,6 +90,9 @@ public class PruebaFase1 {
         tipos("/**/-- fin", "");
         token(analizar("").get(0), TipoToken.FIN_DE_ARCHIVO, "EOF", 1, 1);
         token(analizar(" \t\n").get(0), TipoToken.FIN_DE_ARCHIVO, "EOF", 2, 1);
+        token(analizar("\uFEFFCREAR").get(0), TipoToken.CREAR, "CREAR", 1, 1);
+        token(analizar("\uFEFF").get(0), TipoToken.FIN_DE_ARCHIVO, "EOF", 1, 1);
+        tipos("id\uFEFFotro", "IDENTIFICADOR ERROR IDENTIFICADOR");
     }
 
     private static void integracion() {
@@ -150,7 +153,7 @@ public class PruebaFase1 {
             }
             proceso(1, "Errores lexicos: 4", archivo);
         }
-        proceso(2, "Uso:");
+        proceso(0, "Uso:", "--ayuda");
         proceso(2, "Uso:", "tests/test_ddl.sql", "tests/test_dml.sql");
         Path inexistente = Files.createTempFile("fase1-inexistente-", ".sql");
         try {
@@ -179,7 +182,7 @@ public class PruebaFase1 {
                 return;
             }
             String texto = Files.readString(salida, StandardCharsets.UTF_8);
-            boolean tablaVisible = codigo == 2 || (texto.contains("TABLA DE SIMBOLOS")
+            boolean tablaVisible = codigo == 2 || mensaje.equals("Uso:") || (texto.contains("TABLA DE SIMBOLOS")
                     && texto.contains("FIN_DE_ARCHIVO") && texto.contains("RESULTADO:"));
             probar("Main: " + mensaje,
                     proceso.exitValue() == codigo && texto.contains(mensaje) && tablaVisible);

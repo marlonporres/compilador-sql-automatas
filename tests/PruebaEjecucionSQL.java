@@ -20,8 +20,10 @@ public final class PruebaEjecucionSQL {
     public static void main(String[] args) throws Exception {
         flujoCompleto();
         tiposYLiterales();
+        archivoConBOM();
         aislamientoYBloqueo();
         comparar();
+        compararIdentificadores();
         erroresReferencia();
         inmutabilidad();
         System.out.println("Pruebas ejecución SQL: " + total + "   Fallidas: " + fallidas);
@@ -126,6 +128,24 @@ public final class PruebaEjecucionSQL {
                 && limite.resultados().getLast().linea() == 2 && limite.resultados().getLast().error().contains("1000"));
     }
 
+    private static void archivoConBOM() throws Exception {
+        Path archivo = Files.createTempFile("fase3-bom-", ".sql");
+        try {
+            Files.writeString(archivo, "\uFEFFCREAR TABLA t (id ENTERO);"
+                    + "INSERTAR EN t VALORES (1);SELECCIONAR * DESDE t;", StandardCharsets.UTF_8);
+            String fuente = Files.readString(archivo, StandardCharsets.UTF_8);
+            InformeEjecucion informe = SERVICIO.ejecutar(fuente);
+            probar("archivo UTF-8 con BOM inicial ejecuta y conserva posición 1:1", informe.esExitoso()
+                    && ultimaConsulta(informe).filas().size() == 1
+                    && informe.resultados().getFirst().linea() == 1
+                    && informe.resultados().getFirst().columna() == 1);
+            probar("archivo con BOM coincide con referencia SQL también con BOM", SERVICIO.comparar(fuente,
+                    "\uFEFFCREATE TABLE t (id INT);INSERT INTO t VALUES (1);SELECT * FROM t;").coincide());
+        } finally {
+            Files.deleteIfExists(archivo);
+        }
+    }
+
     private static void comparar() {
         String fuente = "CREAR TABLA t (id ENTERO, nombre TEXTO);"
                 + "INSERTAR EN t (id) VALORES (2);INSERTAR EN t VALORES (1, 'a');INSERTAR EN t VALORES (1, 'a');"
@@ -186,6 +206,28 @@ public final class PruebaEjecucionSQL {
         }
         probar("dos scripts vacíos nunca coinciden", !SERVICIO.comparar("", "").coincide());
         probar("error original no ejecuta referencia", SERVICIO.comparar("SELECCIONAR * DESDE noexiste;", "CREATE TABLE t (id INT);").referencia().isEmpty());
+    }
+
+    private static void compararIdentificadores() {
+        String fuente = "CREAR TABLA t_a (uno ENTERO);CREAR TABLA tba (dos TEXTO);"
+                + "INSERTAR EN t_a VALORES (7);INSERTAR EN tba VALORES ('dato');"
+                + "SELECCIONAR * DESDE t_a;SELECCIONAR * DESDE tba;";
+        String referencia = "CREATE TABLE t_a (uno INT);CREATE TABLE tba (dos TEXT);"
+                + "INSERT INTO t_a VALUES (7);INSERT INTO tba VALUES ('dato');"
+                + "SELECT * FROM t_a;SELECT * FROM tba;";
+        probar("guion bajo no mezcla columnas de tablas al comparar", SERVICIO.comparar(fuente, referencia).coincide());
+        probar("diferencias reales se conservan con guion bajo", !SERVICIO.comparar(fuente,
+                referencia.replace("uno", "distinto")).coincide());
+        String espanol = "CREAR TABLA niños (año ENTERO, descripción TEXTO);"
+                + "INSERTAR EN niños VALORES (2026, 'matrícula');"
+                + "SELECCIONAR año, descripción DESDE niños DONDE año = 2026 Y descripción = 'matrícula';";
+        String sql = "CREATE TABLE niños (año INT, descripción TEXT);"
+                + "INSERT INTO niños VALUES (2026, 'matrícula');"
+                + "SELECT año, descripción FROM niños WHERE año = 2026 AND descripción = 'matrícula';";
+        probar("referencia acepta identificadores españoles en tabla columnas y condiciones",
+                SERVICIO.comparar(espanol, sql).coincide());
+        probar("referencia con identificadores españoles detecta datos distintos", !SERVICIO.comparar(espanol,
+                sql.replace("matrícula", "otro")).coincide());
     }
 
     private static void inmutabilidad() {

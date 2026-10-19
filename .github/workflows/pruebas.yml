@@ -35,5 +35,19 @@ jobs:
           done
       - name: Probar ventana y botones en escritorio virtual
         run: xvfb-run -a java -Dfile.encoding=UTF-8 -cp 'out:lib/*' PruebaInterfaz
+      - name: Probar entrada Main y recorrido grafico completo
+        run: xvfb-run -a java -Dfile.encoding=UTF-8 -cp 'out:lib/*' Main --verificar-arranque
       - name: Comparar la demostracion con SQL independiente
         run: java -Dfile.encoding=UTF-8 -cp 'out:lib/*' cli.Fase3CLI tests/demo_fase3.sql tests/demo_fase3_referencia.sql
+
+  verificar-arranque-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Probar lanzador y paquete desde otra carpeta
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/PruebaArranque.ps1

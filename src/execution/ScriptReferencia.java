@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 /** Delimita SQL básico respetando cadenas, identificadores y comentarios. */
 final class ScriptReferencia {
     record Fragmento(String sql, int linea, int columna) { }
-    private static final String ID = "[A-Za-z_][A-Za-z_0-9]*";
+    private static final String ID = "[\\p{L}_][\\p{L}_0-9]*";
     private static final String TIPO = "(?:INT(?:EGER)?|BIGINT|SMALLINT|TINYINT|TEXT|VARCHAR|CHARACTER\\s+VARYING"
             + "|DECIMAL|NUMERIC|DECFLOAT|BOOLEAN|DATE)(?:\\s*\\(\\s*\\d+\\s*(?:,\\s*\\d+\\s*)?\\))?";
     private ScriptReferencia() { }
@@ -88,7 +88,7 @@ final class ScriptReferencia {
                         + "(?:\\s*,\\s*" + ID + "\\s*=\\s*" + literal + ")*" + condicion);
         if (!valido || Pattern.compile("(?i)\\b(?:CALL|RUNSCRIPT|BACKUP|SCRIPT|SHUTDOWN|UNION|JOIN|EXISTS|SELECT)\\b")
                 .matcher(simple.replaceFirst("(?i)^SELECT\\b", "").replaceFirst("(?i)(ALTER.*)SET DATA TYPE", "$1")).find()
-                || Pattern.compile("(?i)\\b(?!AND\\b|OR\\b|NOT\\b|VALUES\\b|TABLE\\b|INTO\\b)[A-Za-z_][A-Za-z_0-9]*\\s*\\(")
+                || Pattern.compile("(?i)\\b(?!AND\\b|OR\\b|NOT\\b|VALUES\\b|TABLE\\b|INTO\\b)" + ID + "\\s*\\(")
                         .matcher(simple.replaceFirst("(?i)^CREATE\\s+TABLE\\s+" + ID, "CREATE TABLE ")
                                 .replaceFirst("(?i)^INSERT\\s+INTO\\s+" + ID, "INSERT INTO ")
                                 .replaceAll("(?i)\\b(?:NUMERIC|DECIMAL|DECFLOAT|VARCHAR|VARYING)\\s*\\([^)]*\\)", "TIPO")).find()) {
@@ -97,7 +97,8 @@ final class ScriptReferencia {
     }
 
     private static boolean coincide(String texto, String patron) {
-        return Pattern.compile(patron, Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(texto).matches();
+        return Pattern.compile(patron, Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+                | Pattern.UNICODE_CHARACTER_CLASS).matcher(texto).matches();
     }
 
     private static String enmascarar(String sql) {

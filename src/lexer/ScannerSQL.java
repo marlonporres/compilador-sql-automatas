@@ -57,7 +57,9 @@ public class ScannerSQL {
         tokens.clear();
         int fila = 1;
         int columna = 1;
-        int i = 0;
+        // La marca UTF-8 que algunos editores conservan no es parte del SQL
+        // ni ocupa una columna visible. En otras posiciones sigue siendo error.
+        int i = entrada.startsWith("\uFEFF") ? 1 : 0;
 
         while (i < entrada.length()) {
             char ch = entrada.charAt(i);

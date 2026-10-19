@@ -3,12 +3,14 @@ import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.imageio.ImageIO;
 import javax.swing.JComboBox;
@@ -155,8 +157,30 @@ public final class PruebaInterfaz {
         } finally {
             if (ventana != null) enUI(() -> { ventana.cerrarVentana(); return null; });
         }
+        comprobar("arranque completo desde otra carpeta", verificarArranqueDesdeOtraCarpeta());
         System.out.println("Pruebas Interfaz: " + total + "   Fallidas: " + fallidas);
         if (fallidas > 0) System.exit(1);
+    }
+
+    private static boolean verificarArranqueDesdeOtraCarpeta() throws Exception {
+        String[] entradas = System.getProperty("java.class.path").split(
+                java.util.regex.Pattern.quote(File.pathSeparator));
+        List<String> rutas = new ArrayList<>();
+        for (String entrada : entradas) rutas.add(Path.of(entrada).toAbsolutePath().normalize().toString());
+        String ejecutable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
+        Process proceso = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", ejecutable).toString(),
+                "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
+                "-cp", String.join(File.pathSeparator, rutas),
+                "ui.AplicacionGUI", "--verificar-arranque")
+                .directory(Path.of(System.getProperty("java.io.tmpdir")).toFile())
+                .redirectErrorStream(true).start();
+        boolean termino = proceso.waitFor(40, TimeUnit.SECONDS);
+        if (!termino) { proceso.destroyForcibly(); proceso.waitFor(); }
+        String salidaProceso = new String(proceso.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        boolean correcto = termino && proceso.exitValue() == 0
+                && salidaProceso.contains("ARRANQUE VERIFICADO");
+        if (!correcto) System.err.println(salidaProceso);
+        return correcto;
     }
 
     private static void esperar() throws Exception {

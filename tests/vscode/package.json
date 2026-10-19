@@ -1,0 +1,8 @@
+{
+    "name": "sqlstudio-verificacion-arranque",
+    "displayName": "Verificacion local del arranque de SQL Studio",
+    "publisher": "sqlstudio",
+    "version": "1.0.0",
+    "engines": {"vscode": "^1.90.0"},
+    "main": "./extension.js"
+}

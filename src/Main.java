@@ -12,10 +12,15 @@ import compiler.CompiladorSQL;
 import compiler.ResultadoCompilacion;
 import errors.FaseError;
 
-/** Entrada de consola: modo léxico original y análisis completo con --fase2. */
+/** Sin argumentos abre la aplicación; con un archivo conserva el análisis por consola. */
 public class Main {
 
     public static void main(String[] args) {
+
+        if (args.length == 0 || (args.length == 1 && args[0].equals("--verificar-arranque"))) {
+            ui.AplicacionGUI.main(args);
+            return;
+        }
 
         System.out.println("==============================================");
         System.out.println("       COMPILADOR SQL");
@@ -23,17 +28,17 @@ public class Main {
         System.out.println("==============================================");
         System.out.println();
 
+        if (args.length == 1 && (args[0].equals("--ayuda") || args[0].equals("--help"))) {
+            imprimirUso();
+            return;
+        }
+
         // Verificar que se haya indicado un archivo
         boolean fase2 = (args.length == 2 || args.length == 3)
                 && args[1].equals("--fase2")
                 && (args.length != 3 || args[2].equals("--resumen"));
         if (args.length != 1 && !fase2) {
-            System.out.println("Uso:");
-            System.out.println("java -cp out Main <archivo.sql>");
-            System.out.println("java -cp out Main <archivo.sql> --fase2 [--resumen]");
-            System.out.println();
-            System.out.println("Ejemplo:");
-            System.out.println("java -cp out Main tests/test_ddl.sql");
+            imprimirUso();
             System.exit(2);
             return;
         }
@@ -132,6 +137,17 @@ public class Main {
             System.out.println(e.getMessage());
             System.exit(2);
         }
+    }
+
+    private static void imprimirUso() {
+        System.out.println("Uso:");
+        System.out.println("java -cp \"out;lib/*\" Main  (abre la interfaz grafica)");
+        System.out.println("java -cp out Main <archivo.sql>");
+        System.out.println("java -cp out Main <archivo.sql> --fase2 [--resumen]");
+        System.out.println();
+        System.out.println("Ejemplo:");
+        System.out.println("java -cp out Main tests/test_ddl.sql");
+        System.out.println("En VS Code abre SQLStudio.code-workspace y usa F5.");
     }
 
     private static void imprimirFase2(ResultadoCompilacion resultado, boolean resumen) {

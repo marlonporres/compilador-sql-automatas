@@ -8,7 +8,7 @@ comparación de ejecuciones. No había ramas de fase 3 ni PR abiertos en GitHub
 al consultar el repositorio el 19/10/2026.
 
 Se completó la fase 3 sobre esa base. La verificación final local reúne
-**526 comprobaciones aprobadas, cero fallos**, en once suites. La compilación
+**536 comprobaciones aprobadas, cero fallos**, en once suites. La compilación
 usa `--release 21 -encoding UTF-8 -Xlint:all -Werror`; en este equipo se ejecutó
 con JDK 25.0.3. El flujo de GitHub verifica además el proyecto con JDK 21.
 
@@ -51,27 +51,65 @@ de esquema y datos aunque no exista un SELECT final.
   lineales, con pruebas de cadenas largas, BOM y saltos de línea.
 - Errores del traductor y SQL de referencia necesitaban mensajes y posiciones
   verificables. Se conservan por sentencia y se recuperan los controles de la GUI.
+- VS Code podía ejecutar una clase aislada desde su proyecto temporal sin las
+  clases del repositorio. Se añadió área de trabajo, apertura directa y compilación
+  previa a F5 con classpath explícito. `Main` sin argumentos ahora abre la GUI.
+- Los ejemplos dependían del directorio de la terminal. Ahora se localizan junto
+  a las clases o como recursos del JAR; el recorrido gráfico se prueba desde TEMP.
+- Un `JAVA_HOME` incorrecto o un intermediario de PATH bloqueado impedía arrancar.
+  El lanzador comprueba instalaciones con espera limitada y busca alternativas.
+- JDBC interpretaba `_` como comodín al consultar columnas del catálogo y mezclaba
+  tablas de nombres similares. La búsqueda ahora escapa el nombre exacto.
+- El SQL de referencia rechazaba identificadores españoles. Ahora admite `ñ`
+  y tildes, también en condiciones. Un BOM inicial de archivos UTF-8 se admite
+  sin desplazar las posiciones del analizador; un BOM interior sigue siendo error.
 
 ## Conteo reproducible
 
 | Suite | Comprobaciones | Fallos |
 |---|---:|---:|
 | Tabla de símbolos | 50 | 0 |
-| Fase 1 | 82 | 0 |
+| Fase 1 | 85 | 0 |
 | Parser DDL | 10 | 0 |
 | Fase 2 | 80 | 0 |
 | Analizador DML | 15 | 0 |
 | Semántica DDL | 70 | 0 |
 | Semántica DML | 32 | 0 |
 | Delimitadores | 54 | 0 |
-| Ejecución SQL | 63 | 0 |
+| Ejecución SQL | 69 | 0 |
 | Paneles GUI | 28 | 0 |
-| Ventana y controles | 42 | 0 |
-| **Total** | **526** | **0** |
+| Ventana y controles | 43 | 0 |
+| **Total** | **536** | **0** |
 
 Windows: `VERIFICAR_FASE3.cmd`. Equivalente: `powershell -NoProfile
 -ExecutionPolicy Bypass -File .\gui.ps1 -Modo pruebas` en una sola línea.
 La comprobación gráfica requiere escritorio; GitHub usa Xvfb en Linux.
+
+Además, `powershell -NoProfile -ExecutionPolicy Bypass -File tests/PruebaArranque.ps1`
+realiza **12 comprobaciones del lanzador y paquete** en Windows, incluyendo
+compilación desde HOME, rutas con espacios, JDK alternativo, tiempo límite,
+manifiesto, dependencias y comparación SQL. Estas verificaciones también vuelven
+a ejecutar parte de las pruebas del proyecto; se reportan por separado.
+
+`java -jar output/SQLStudio/SQLStudio.jar --verificar-arranque` abre una ventana
+real, carga el ejemplo, analiza, ejecuta y compara. Devuelve 0 solamente si todo
+funciona. Se comprobó desde HOME con el JAR y con `Main --verificar-arranque`.
+La versión para presentar está en `output/SQLStudio/ABRIR.cmd`; se regenera
+con `EMPAQUETAR_APP.cmd`.
+
+La prueba adicional de VS Code 1.142.0 está aprobada en
+`output/vscode/verificacion.json`: ambas entradas se iniciaron mediante su
+depurador y tarea previa. La ventana completó análisis, ejecución y comparación;
+la consola analizó 15 sentencias sin errores. La prueba captura salida en la
+consola interna y registra la terminación observada, sin inventar un código de
+salida que el adaptador no emite.
+
+Se generó además `output/Escritorio/SQLStudio/SQLStudio.exe` con `jpackage`,
+incluyendo un entorno Java propio. Se ejecutó desde HOME con
+`--verificar-arranque` y terminó con código 0, después del recorrido gráfico
+de validación, ejecución y comparación. La carpeta completa se copia al equipo
+de exposición; el ejecutable no necesita Java instalado ni un IDE. Se regenera
+con `scripts/CrearEjecutable.ps1`, después de preparar el JAR.
 
 Las capturas de la aplicación real se generan con `gui.ps1 -Modo capturas`:
 análisis, consultas/comparación, errores y tamaño mínimo de ventana.

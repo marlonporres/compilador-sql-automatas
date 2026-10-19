@@ -2,5 +2,6 @@
     "java.project.sourcePaths": ["src", "tests"],
     "java.project.outputPath": "out/vscode",
     "java.project.referencedLibraries": ["lib/**/*.jar"],
+    "java.debug.settings.forceBuildBeforeLaunch": false,
     "files.encoding": "utf8"
 }

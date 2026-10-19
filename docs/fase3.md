@@ -87,8 +87,10 @@ La referencia admite únicamente DDL/DML básico sobre tablas: `CREATE`, `ALTER`
 
 1. Tener un **JDK 21 o posterior** con `java` y `javac` disponibles.
 2. Conservar `lib/h2-2.4.240.jar` y `lib/flatlaf-3.6.2.jar`, incluidos con el proyecto. El primero es el motor SQL y el segundo el tema visual de Swing. No hace falta instalar ni iniciar un servidor H2.
-3. Ejecutar desde la raíz para encontrar `tests/` y `lib/`.
+3. Conservar la carpeta completa. Los lanzadores y ejemplos resuelven su ubicación
+   aunque la terminal esté en otra carpeta.
 4. Abrir **ABRIR_GUI.cmd**. Para verificar, usar **VERIFICAR_FASE3.cmd**.
+   En VS Code, abrir **ABRIR_EN_VSCODE.cmd** y usar **SQL Studio - Interfaz grafica → F5**.
 
 También se puede iniciar desde PowerShell:
 
@@ -97,9 +99,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\gui.ps1 -Modo gui
 powershell -NoProfile -ExecutionPolicy Bypass -File .\gui.ps1 -Modo pruebas
 powershell -NoProfile -ExecutionPolicy Bypass -File .\gui.ps1 -Modo demo
 powershell -NoProfile -ExecutionPolicy Bypass -File .\gui.ps1 -Modo capturas
+powershell -NoProfile -ExecutionPolicy Bypass -File .\gui.ps1 -Modo empaquetar
 ```
 
 El motor y el tema visual están fijados a las versiones incluidas; la demostración no requiere descargar dependencias ni acceder a Internet. Las capturas requieren un escritorio gráfico. En un entorno sin escritorio se deben ejecutar pruebas de lógica en lugar de abrir la ventana.
+
+El modo `empaquetar` genera `output/SQLStudio/ABRIR.cmd`, un JAR con sus
+dependencias y ejemplos para presentar sin IDE. `Main` sin argumentos abre la GUI;
+con `--ayuda` muestra el uso y con un archivo conserva el modo de consola.
+
+La prueba de VS Code utiliza la API oficial del depurador en una instancia
+separada. Conserva la tarea de compilación, entrada y classpath de F5; cambia la
+consola a `internalConsole` para capturar la salida. Verifica compilación previa
+con código 0, confirmación funcional y terminación de ambas entradas. El adaptador
+Java instalado no emite un código de salida de la aplicación: el informe lo
+conserva como `null` y lo indica expresamente. El JAR y `Main` se verifican además
+como procesos normales con código de salida 0.
+
+Para Windows también se preparó `output/Escritorio/SQLStudio/SQLStudio.exe`:
+`jpackage` incluye el entorno Java dentro de esa carpeta. No requiere instalar
+Java en el equipo receptor. Debe copiarse la carpeta completa, no solo el `.exe`.
+El JAR conserva la compatibilidad con Java 21; la aplicación autónoma local
+incluye el entorno del JDK 25 utilizado para empaquetarla.
 
 El modo de consola anterior se conserva:
 

@@ -6,6 +6,13 @@
             "name": "SQL Studio - Interfaz grafica",
             "request": "launch",
             "mainClass": "ui.AplicacionGUI",
+            "preLaunchTask": "Compilar SQL Studio",
+            "classPaths": [
+                "${workspaceFolder}/out",
+                "${workspaceFolder}/lib/h2-2.4.240.jar",
+                "${workspaceFolder}/lib/flatlaf-3.6.2.jar"
+            ],
+            "sourcePaths": ["${workspaceFolder}/src"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "encoding": "UTF-8",
@@ -16,6 +23,13 @@
             "name": "Fase 2 - Consola con ejemplo valido",
             "request": "launch",
             "mainClass": "Main",
+            "preLaunchTask": "Compilar SQL Studio",
+            "classPaths": [
+                "${workspaceFolder}/out",
+                "${workspaceFolder}/lib/h2-2.4.240.jar",
+                "${workspaceFolder}/lib/flatlaf-3.6.2.jar"
+            ],
+            "sourcePaths": ["${workspaceFolder}/src"],
             "args": ["tests/demo_fase2_valido.sql", "--fase2", "--resumen"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

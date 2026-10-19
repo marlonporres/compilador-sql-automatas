@@ -199,18 +199,20 @@ public final class VentanaPrincipal extends JFrame {
 
     public void cargarEjemplo(boolean conErrores) {
         try {
-            String archivo = conErrores ? "tests/demo_fase2_errores.sql" : "tests/demo_fase3.sql";
-            fuente.texto(Files.readString(Path.of(archivo), StandardCharsets.UTF_8));
-            referencia.texto(conErrores ? "" : Files.readString(
-                    Path.of("tests/demo_fase3_referencia.sql"), StandardCharsets.UTF_8));
+            String archivo = conErrores ? "demo_fase2_errores.sql" : "demo_fase3.sql";
+            String contenidoFuente = RecursosProyecto.leerEjemplo(archivo);
+            String contenidoReferencia = conErrores ? "" : RecursosProyecto.leerEjemplo(
+                    "demo_fase3_referencia.sql");
+            fuente.texto(contenidoFuente);
+            referencia.texto(contenidoReferencia);
             editores.setSelectedIndex(0);
         } catch (IOException e) {
-            avisar("No se pudo abrir el ejemplo. Inicia la aplicación desde ABRIR_GUI.cmd. " + e.getMessage());
+            avisar("No se pudo abrir el ejemplo. " + e.getMessage());
         }
     }
 
     private void abrirArchivo() {
-        JFileChooser selector = new JFileChooser("tests");
+        JFileChooser selector = new JFileChooser(RecursosProyecto.carpetaEjemplos().toFile());
         selector.setFileFilter(new FileNameExtensionFilter("Scripts SQL UTF-8", "sql"));
         if (selector.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
         try {

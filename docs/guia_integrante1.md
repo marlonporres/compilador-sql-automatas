@@ -13,6 +13,8 @@ Tu parte es comprender, mantener y explicar la ventana del compilador. **La base
 
 Requiere **JDK 21 o posterior**, escritorio gráfico y los archivos incluidos `lib/h2-2.4.240.jar` y `lib/flatlaf-3.6.2.jar`. H2 ejecuta SQL; FlatLaf da el acabado visual a Swing. No necesitas instalar un servidor de base de datos ni configurar usuarios. Para revisar las pruebas usa **VERIFICAR_FASE3.cmd**. Si aparece un error, conserva su mensaje completo y no continúes con una compilación fallida.
 
+**En VS Code:** abre **ABRIR_EN_VSCODE.cmd**, luego **Ctrl+Shift+D → SQL Studio - Interfaz grafica → F5**. Así se carga el proyecto completo y se compila antes de abrir la ventana. No ejecutes un `.java` como archivo suelto desde `~`: faltarán sus clases y librerías. `Main` sin argumentos también abre la GUI cuando se ejecuta dentro del proyecto. Para presentar sin el editor, usa **output/SQLStudio/ABRIR.cmd**; genera de nuevo esa carpeta con **EMPAQUETAR_APP.cmd** si cambias el código.
+
 ## 2. Entiende solo este recorrido
 
 ```mermaid

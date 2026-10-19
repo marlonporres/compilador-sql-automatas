@@ -7,27 +7,10 @@ $ErrorActionPreference = 'Stop'
 Push-Location -LiteralPath $PSScriptRoot
 try {
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-    $jdkHome = $env:JAVA_HOME
-    if ($jdkHome -and (Test-Path -LiteralPath (Join-Path $jdkHome 'bin/javac.exe'))) {
-        $compilador = Join-Path $jdkHome 'bin/javac.exe'
-    } else {
-        $comandoJava = Get-Command javac.exe -ErrorAction SilentlyContinue
-        if (-not $comandoJava) {
-            throw 'Necesitas instalar un JDK 21 o posterior y agregar su carpeta bin a PATH.'
-        }
-        $compilador = $comandoJava.Source
-        # Oracle javapath puede ser un enlace al JDK instalado.
-        $enlace = Get-Item -LiteralPath $compilador
-        if ($enlace.Target) {
-            $destino = @($enlace.Target)[0]
-            if (-not [System.IO.Path]::IsPathRooted($destino)) {
-                $destino = Join-Path $enlace.DirectoryName $destino
-            }
-            if (Test-Path -LiteralPath $destino) { $compilador = $destino }
-        }
-    }
-    $ejecutor = Join-Path (Split-Path -Parent $compilador) 'java.exe'
-    if (-not (Test-Path -LiteralPath $ejecutor)) { throw 'No se encuentra java.exe junto a javac.exe.' }
+    . (Join-Path $PSScriptRoot 'scripts/JavaProyecto.ps1')
+    $jdkDemo = Resolve-JdkProyecto
+    $compilador = $jdkDemo.Javac
+    $ejecutor = $jdkDemo.Java
     Write-Host 'Compilando el proyecto con comprobaciones estrictas...'
     & $compilador -version
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo iniciar el JDK.' }
