@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "SQL Studio - Interfaz grafica",
+            "request": "launch",
+            "mainClass": "ui.AplicacionGUI",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "encoding": "UTF-8",
+            "vmArgs": ["-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8"]
+        },
+        {
+            "type": "java",
+            "name": "Fase 2 - Consola con ejemplo valido",
+            "request": "launch",
+            "mainClass": "Main",
+            "args": ["tests/demo_fase2_valido.sql", "--fase2", "--resumen"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "encoding": "UTF-8",
+            "vmArgs": ["-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8"]
+        }
+    ]
+}

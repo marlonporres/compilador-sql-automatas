@@ -26,6 +26,31 @@ Desde PowerShell también puedes usar `powershell -NoProfile -ExecutionPolicy By
 El modo `demo` verifica la comparación sin abrir la ventana; `capturas` prueba
 sus controles y guarda imágenes en `output/fase3/capturas/`.
 
+## Abrir desde Visual Studio Code
+
+Necesitas **JDK 21 o posterior**, **Extension Pack for Java** de Microsoft y
+la carpeta completa del repositorio, incluyendo `lib/`. No necesitas Maven,
+Gradle ni un servidor de base de datos. VS Code utiliza los JAR incluidos.
+
+1. En **Archivo → Abrir carpeta**, selecciona `compilador-sql-automatas`,
+   donde están `src/`, `lib/`, `tests/` y `.vscode/`.
+2. Abre **Extensiones** con **Ctrl+Shift+X** y verifica que esté instalado
+   **Extension Pack for Java**. Espera a que Java termine de cargar el proyecto.
+3. Abre **Ejecutar y depurar** con **Ctrl+Shift+D**. Selecciona
+   **SQL Studio - Interfaz grafica** y pulsa **F5**.
+4. En la ventana, pulsa **Ejemplo completo → Analizar → Ejecutar**.
+   Para terminar, cierra la ventana o detén la depuración.
+
+La entrada gráfica es `src/ui/AplicacionGUI.java`. Ejecutar `Main.java`
+sin argumentos muestra **Uso** porque `Main` conserva la versión de consola.
+Para esa versión, selecciona **Fase 2 - Consola con ejemplo valido** en el
+mismo menú; ya incluye el archivo y los argumentos necesarios.
+
+Si Java no reconoce las librerías después de actualizar, abre **Ctrl+Shift+P**,
+ejecuta **Java: Clean Java Language Server Workspace** y acepta reiniciar.
+Para revisar el JDK, usa **Java: Configure Java Runtime** y elige 21 o posterior.
+También puedes abrir `ABRIR_GUI.cmd` desde el Explorador de Windows.
+
 ## Demostración de fase 2
 
 En Windows, haga doble clic en **DEMOSTRAR.cmd**. Compila el proyecto y abre
