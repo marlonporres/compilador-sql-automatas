@@ -67,7 +67,7 @@ try {
             foreach ($suiteProyecto in @('symbol_table.PruebaTablaSimbolos', 'PruebaFase1',
                     'PruebaParserDDL', 'PruebaFase2', 'PruebaAnalizadorDML', 'PruebaSemanticaDDL',
                     'PruebaSemanticaDML', 'PruebaDelimitadores', 'PruebaEjecucionSQL',
-                    'PruebaPanelesGUI', 'PruebaInterfaz')) {
+                    'PruebaPanelesGUI', 'PruebaIntegrante2', 'PruebaPersistencia', 'PruebaInterfaz')) {
                 & $jdkProyecto.Java @opcionesProyecto $suiteProyecto
                 if ($LASTEXITCODE -ne 0) { throw "Fallo la suite $suiteProyecto." }
             }

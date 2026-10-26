@@ -12,7 +12,8 @@ public final class AplicacionGUI {
     public static void main(String[] args) {
         boolean diagnostico = Arrays.asList(args).contains("--verificar-arranque");
         if (GraphicsEnvironment.isHeadless()) {
-            System.err.println("La interfaz requiere un escritorio gráfico. Usa VERIFICAR_FASE3.cmd para las pruebas.");
+            System.err.println("La interfaz requiere un escritorio gráfico. Para verificar por consola usa "
+                    + "bash gui.sh demo (macOS/Linux) o gui.ps1 -Modo demo (Windows).");
             System.exit(1);
             return;
         }
@@ -26,7 +27,8 @@ public final class AplicacionGUI {
             VentanaPrincipal ventana = null;
             try {
                 Estilo.instalar();
-                ventana = new VentanaPrincipal();
+                ventana = diagnostico ? new VentanaPrincipal(new execution.ServicioEjecucion())
+                        : new VentanaPrincipal();
                 ventana.setVisible(true);
                 ventana.cargarEjemplo(false);
                 if (diagnostico) DiagnosticoArranque.verificar(ventana);
@@ -44,7 +46,8 @@ public final class AplicacionGUI {
             } catch (ClassNotFoundException e) {
                 throw new IllegalStateException("No se encontró " + dependencia
                         + ". Abre la carpeta completa compilador-sql-automatas en VS Code y usa SQL Studio"
-                        + " - Interfaz grafica. También puedes abrir ABRIR_GUI.cmd."
+                        + " - Interfaz grafica. También puedes usar bash gui.sh (macOS/Linux)"
+                        + " o ABRIR_GUI.cmd (Windows)."
                         + " Conserva todas las bibliotecas de lib.", e);
             }
         }

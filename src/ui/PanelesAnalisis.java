@@ -23,6 +23,7 @@ import symbol_table.Simbolo;
 public final class PanelesAnalisis extends JPanel {
     private static final long serialVersionUID = 1L;
 
+    // Los modelos guardan los datos; las JTable los presentan en pantalla.
     private final DefaultTableModel tokens = modelo(
             new String[] { "Tipo de token", "Lexema", "Línea", "Columna" }, 2, 3);
     private final DefaultTableModel simbolos = modelo(
@@ -37,6 +38,7 @@ public final class PanelesAnalisis extends JPanel {
     private final JTable tablaLexicos = tabla(lexicos);
     private final JTable tablaErrores = tabla(errores);
     private final JTabbedPane pestanas = new JTabbedPane();
+    private final JTabbedPane vistasSimbolos = new JTabbedPane();
     private final JLabel resumen = Estilo.etiqueta("Analiza tu código para inspeccionar cada etapa.");
     private final JLabel contador = Estilo.etiqueta("SIN ANÁLISIS");
     private transient BiConsumer<Integer, Integer> alSeleccionarError;
@@ -61,7 +63,6 @@ public final class PanelesAnalisis extends JPanel {
         pestanas.addTab("Tokens", contenedor(tablaTokens,
                 "Tipo y posición original de cada lexema en el editor."));
 
-        JTabbedPane vistasSimbolos = new JTabbedPane();
         configurarPestanas(vistasSimbolos);
         vistasSimbolos.addTab("Esquema declarado", contenedor(tablaSimbolos,
                 "Objetos válidos: cada columna pertenece a una tabla."));
@@ -73,6 +74,11 @@ public final class PanelesAnalisis extends JPanel {
         add(pestanas, BorderLayout.CENTER);
         resumen.setForeground(Estilo.MUTED);
         add(resumen, BorderLayout.SOUTH);
+
+        tablaTokens.getAccessibleContext().setAccessibleName("Tokens del análisis");
+        tablaSimbolos.getAccessibleContext().setAccessibleName("Esquema declarado");
+        tablaLexicos.getAccessibleContext().setAccessibleName("Identificadores léxicos");
+        tablaErrores.getAccessibleContext().setAccessibleName("Errores del análisis");
 
         tablaTokens.getColumnModel().getColumn(0).setPreferredWidth(180);
         tablaTokens.getColumnModel().getColumn(1).setPreferredWidth(260);
@@ -94,15 +100,34 @@ public final class PanelesAnalisis extends JPanel {
         });
     }
 
+    /**
+     * Reemplaza el análisis visible con los datos producidos por el compilador.
+     * Debe invocarse desde el hilo de eventos de Swing (EDT), como hace
+     * ControladorGUI al terminar su SwingWorker.
+     *
+     * @param resultado análisis que se mostrará; null deja los paneles vacíos
+     */
     public void mostrar(ResultadoCompilacion resultado) {
         limpiar();
         if (resultado == null) {
             return;
         }
+
+        cargarTokens(resultado);
+        cargarEsquemaDeclarado(resultado);
+        cargarIdentificadoresLexicos(resultado);
+        cargarErrores(resultado);
+        actualizarResumen(resultado);
+    }
+
+    private void cargarTokens(ResultadoCompilacion resultado) {
         for (Token token : resultado.tokens()) {
             tokens.addRow(new Object[] { token.getTipo(), token.getLexema(),
                     token.getlinea(), token.getcolumna() });
         }
+    }
+
+    private void cargarEsquemaDeclarado(ResultadoCompilacion resultado) {
         for (CatalogoSemantico.Tabla tabla : resultado.catalogo().obtenerTablas()) {
             simbolos.addRow(new Object[] { "TABLA", tabla.getNombre(), "GLOBAL", "—" });
             for (CatalogoSemantico.Columna columna : tabla.obtenerColumnas()) {
@@ -110,15 +135,24 @@ public final class PanelesAnalisis extends JPanel {
                         tabla.getNombre(), columna.tipo() });
             }
         }
+    }
+
+    private void cargarIdentificadoresLexicos(ResultadoCompilacion resultado) {
         for (Simbolo simbolo : resultado.simbolosLexicos().obtenerTodos()) {
             lexicos.addRow(new Object[] { simbolo.getId(), simbolo.getNombre(),
                     simbolo.getTipoToken(), simbolo.getCategoria(), simbolo.getTipoDato(),
                     simbolo.getLinea(), simbolo.getColumna(), simbolo.getApariciones() });
         }
+    }
+
+    private void cargarErrores(ResultadoCompilacion resultado) {
         for (Diagnostico error : resultado.errores().obtenerTodos()) {
             errores.addRow(new Object[] { error.getFase(), error.getCodigo(), error.getMensaje(),
                     error.getLexema(), error.getLinea(), error.getColumna() });
         }
+    }
+
+    private void actualizarResumen(ResultadoCompilacion resultado) {
         actualizarTitulos();
         contador.setText(resultado.esValido() ? "ANÁLISIS CORRECTO" : "REQUIERE CORRECCIÓN");
         contador.setForeground(resultado.esValido() ? Estilo.EXITO : Estilo.ERROR);
@@ -168,12 +202,15 @@ public final class PanelesAnalisis extends JPanel {
     public JTable getTablaTokens() { return tablaTokens; }
     public JTable getTablaErrores() { return tablaErrores; }
     public JTable getTablaSimbolos() { return tablaSimbolos; }
+    public JTable getTablaLexicos() { return tablaLexicos; }
     public int cantidadErrores() { return errores.getRowCount(); }
 
     private void actualizarTitulos() {
         pestanas.setTitleAt(0, "Tokens · " + tokens.getRowCount());
         pestanas.setTitleAt(1, "Símbolos · " + simbolos.getRowCount());
         pestanas.setTitleAt(2, "Errores · " + errores.getRowCount());
+        vistasSimbolos.setTitleAt(0, "Esquema declarado · " + simbolos.getRowCount());
+        vistasSimbolos.setTitleAt(1, "Identificadores léxicos · " + lexicos.getRowCount());
     }
 
     private static void configurarPestanas(JTabbedPane componente) {

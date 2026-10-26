@@ -29,6 +29,7 @@ import javax.swing.KeyStroke;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import compiler.ResultadoCompilacion;
 import execution.InformeEjecucion;
+import execution.ServicioEjecucion;
 import execution.ResultadoComparacion;
 
 /** Composición de la ventana. El controlador coordina el trabajo fuera del hilo gráfico. */
@@ -46,15 +47,22 @@ public final class VentanaPrincipal extends JFrame {
     private final JButton errores = Estilo.boton("Ejemplo con errores", false);
     private final JButton abrir = Estilo.boton("Abrir .sql", false);
     private final JLabel estado = Estilo.etiqueta("Sin analizar");
-    private final JLabel detalle = Estilo.etiqueta("Escribe o abre un script completo para comenzar.");
+    private final JLabel detalle = Estilo.etiqueta("Escribe o abre un script para comenzar.");
     private final JLabel posicion = Estilo.etiqueta("Línea 1 · Columna 1");
     private final JProgressBar progreso = new JProgressBar();
     private final JTabbedPane salida = new JTabbedPane();
     private final JTabbedPane editores = new JTabbedPane();
     private final transient ControladorGUI controlador;
+    private final transient ServicioEjecucion servicio;
 
     public VentanaPrincipal() {
+        this(ServicioEjecucion.persistente());
+    }
+
+    /** Permite ensayar la GUI sobre una base temporal sin tocar los datos del usuario. */
+    public VentanaPrincipal(ServicioEjecucion servicio) {
         super("SQL Studio · Compilador SQL en español");
+        this.servicio = java.util.Objects.requireNonNull(servicio);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setMinimumSize(new Dimension(1000, 690));
         setSize(1360, 900);
@@ -67,7 +75,7 @@ public final class VentanaPrincipal extends JFrame {
         contenido.add(areaTrabajo(), BorderLayout.CENTER);
         contenido.add(pie(), BorderLayout.SOUTH);
 
-        controlador = new ControladorGUI(this);
+        controlador = new ControladorGUI(this, servicio);
         fuente.alEditar(controlador::contenidoModificado);
         referencia.alEditar(controlador::referenciaModificada);
         analizar.addActionListener(e -> controlador.analizar());
@@ -120,7 +128,7 @@ public final class VentanaPrincipal extends JFrame {
         editores.setToolTipTextAt(1, "SQL equivalente escrito por separado para contrastar los resultados.");
         JPanel izquierda = new JPanel(new BorderLayout(0, 12));
         izquierda.setOpaque(false);
-        JLabel instrucciones = Estilo.etiqueta("01  FUENTE  ·  Script completo con sus declaraciones");
+        JLabel instrucciones = Estilo.etiqueta("01  FUENTE  ·  Crea tablas o consulta las que ya guardaste");
         instrucciones.setForeground(Estilo.MUTED);
         izquierda.add(instrucciones, BorderLayout.NORTH);
         izquierda.add(editores, BorderLayout.CENTER);
@@ -172,7 +180,10 @@ public final class VentanaPrincipal extends JFrame {
         centro.add(progreso, BorderLayout.SOUTH);
         panel.add(linea, BorderLayout.NORTH);
         panel.add(centro, BorderLayout.CENTER);
-        JLabel nota = Estilo.etiqueta("Base de prueba nueva en cada ejecución · Ctrl+Enter para analizar");
+        JLabel nota = Estilo.etiqueta(servicio.esPersistente()
+                ? "Datos guardados en SQLStudio/datos · Comparar usa bases temporales"
+                : "Base temporal de demostración · Ctrl+Enter para analizar");
+        nota.setToolTipText(servicio.ubicacion());
         nota.setForeground(Estilo.MUTED);
         panel.add(nota, BorderLayout.SOUTH);
         return panel;

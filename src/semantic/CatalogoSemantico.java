@@ -19,6 +19,24 @@ public final class CatalogoSemantico {
     public List<Tabla> obtenerTablas() { return List.copyOf(tablas.values()); }
     public int tamano() { return tablas.size(); }
 
+    /** Carga un esquema externo; las posiciones son de origen, no del script actual. */
+    public void incorporarTabla(String nombre, List<Columna> columnas) {
+        Tabla tabla = new Tabla(nombre, 1, 1);
+        for (Columna columna : columnas) tabla.columnas.put(clave(columna.nombre()), columna);
+        tablas.put(clave(nombre), tabla);
+    }
+
+    /** El análisis simula DDL sobre su copia y nunca altera el esquema inicial. */
+    public CatalogoSemantico copiar() {
+        CatalogoSemantico copia = new CatalogoSemantico();
+        for (Tabla tabla : obtenerTablas()) {
+            Tabla nueva = new Tabla(tabla.nombre, tabla.linea, tabla.columna);
+            nueva.columnas.putAll(tabla.columnas);
+            copia.tablas.put(clave(tabla.nombre), nueva);
+        }
+        return copia;
+    }
+
     void crear(Token nombre, List<ColumnaDDL> columnas) {
         Tabla tabla = new Tabla(nombre.getLexema(), nombre.getlinea(), nombre.getcolumna());
         columnas.forEach(tabla::agregar);

@@ -9,12 +9,17 @@ import lexer.Token;
 import parser.AnalizadorSintactico;
 import parser.ResultadoSintactico;
 import semantic.AnalizadorSemantico;
+import semantic.CatalogoSemantico;
 import semantic.ResultadoSemantico;
 import symbol_table.TablaSimbolos;
 
-/** Conecta las tres fases; cada llamada comienza con un catálogo vacío. */
+/** Conecta las tres fases con un catálogo vacío o una copia del esquema existente. */
 public final class CompiladorSQL {
     public ResultadoCompilacion analizar(String entrada) {
+        return analizar(entrada, new CatalogoSemantico());
+    }
+
+    public ResultadoCompilacion analizar(String entrada, CatalogoSemantico inicial) {
         ScannerSQL scanner = new ScannerSQL();
         scanner.analizar(entrada);
         List<Token> tokens = scanner.getTokens();
@@ -24,7 +29,7 @@ public final class CompiladorSQL {
         tokens.stream().filter(t -> t.getTipo() == TipoToken.ERROR).forEach(errores::agregarLexico);
         ResultadoSintactico sintaxis = new AnalizadorSintactico().analizar(tokens);
         errores.agregarTodos(sintaxis.getErrores());
-        ResultadoSemantico semantica = new AnalizadorSemantico().analizar(sintaxis.getSentencias());
+        ResultadoSemantico semantica = new AnalizadorSemantico().analizar(sintaxis.getSentencias(), inicial.copiar());
         errores.agregarTodos(semantica.errores());
         TablaErrores ordenadas = new TablaErrores();
         ordenadas.agregarTodos(errores.obtenerTodos().stream().sorted(Comparator

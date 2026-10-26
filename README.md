@@ -1,5 +1,30 @@
 # compilador-sql-automatas
+
+> **Actualización: almacenamiento permanente.** La interfaz guarda ahora tablas y filas en la carpeta del usuario `SQLStudio/datos`. Analizar y Limpiar conservan los datos. Comparar SQL y las pruebas siguen usando bases temporales. Consulta [persistencia y ejemplo entre sesiones](docs/persistencia.md); las indicaciones anteriores sobre una base nueva en cada ejecución normal ya no aplican.
+
 Proyecto Final - Autómatas y Lenguajes Formales (Java)
+
+## macOS y Linux
+
+Requiere un **JDK 21 o posterior**. Desde la terminal, en la carpeta del proyecto:
+
+```sh
+bash gui.sh
+```
+
+Compila y abre la interfaz Swing con las bibliotecas incluidas en `lib/`.
+No requiere PowerShell, Maven ni Gradle. El lanzador usa `JAVA_HOME` si está
+definido; en macOS busca un JDK compatible con `java_home`, y en Linux usa el PATH.
+
+Para usar VS Code, abre `SQLStudio.code-workspace`, instala **Extension Pack for
+Java**, selecciona **SQL Studio - Interfaz grafica** en Ejecutar y depurar y pulsa
+**F5**. La tarea de compilación elige automáticamente Bash en macOS/Linux y
+PowerShell en Windows.
+
+Otros modos: `bash gui.sh compilar`, `bash gui.sh demo`, `bash gui.sh pruebas`
+y `bash gui.sh capturas`. Las pruebas completas y las capturas requieren un
+escritorio gráfico; en Linux sin pantalla usa `xvfb-run -a bash gui.sh pruebas`.
+El empaquetado de ejecutables `.exe` continúa siendo exclusivo de Windows.
 
 ## Proyecto final: interfaz y ejecución SQL
 

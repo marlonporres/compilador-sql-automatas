@@ -1,5 +1,7 @@
 # Fase 3 — Interfaz gráfica y ejecución SQL
 
+> **Actualización: almacenamiento permanente.** La interfaz guarda ahora tablas y filas en la carpeta del usuario `SQLStudio/datos`. Analizar y Limpiar conservan los datos. Comparar SQL y las pruebas siguen usando bases temporales. Consulta [persistencia y ejemplo entre sesiones](persistencia.md); las indicaciones anteriores sobre una base nueva en cada ejecución normal ya no aplican.
+
 La fase 3 añade una aplicación de escritorio **Java 21 con Swing y tema FlatLaf 3.6.2** al compilador en español. FlatLaf mejora el aspecto de los componentes Swing; la interfaz sigue usando la misma tecnología Java. Se reutilizan scanner, parser, semántica y resultados de la fase 2; se incorporan traducción del árbol sintáctico, ejecución real sobre **H2 2.4.240** y comparación con SQL escrito por separado.
 
 ## Requisitos del enunciado e implementación

@@ -4,19 +4,22 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.swing.SwingWorker;
-import compiler.CompiladorSQL;
 import compiler.ResultadoCompilacion;
 import execution.ServicioEjecucion;
 
 /** Estado de la sesión visual y coordinación de operaciones fuera del hilo gráfico. */
 public final class ControladorGUI {
     private final VentanaPrincipal ventana;
+    private final ServicioEjecucion servicio;
     private ResultadoCompilacion analisis;
     private String textoAnalizado;
     private boolean ocupado;
     private boolean cerrado;
 
-    public ControladorGUI(VentanaPrincipal ventana) { this.ventana = ventana; }
+    public ControladorGUI(VentanaPrincipal ventana, ServicioEjecucion servicio) {
+        this.ventana = ventana;
+        this.servicio = servicio;
+    }
 
     public void contenidoModificado() {
         analisis = null;
@@ -40,7 +43,7 @@ public final class ControladorGUI {
                 && ventana.editorFuente().texto().equals(textoAnalizado);
         ventana.botonAnalizar().setEnabled(!ocupado && hayTexto);
         ventana.botonEjecutar().setEnabled(!ocupado && valido);
-        ventana.botonComparar().setEnabled(!ocupado && valido
+        ventana.botonComparar().setEnabled(!ocupado && (valido || servicio.esPersistente() && hayTexto)
                 && !ventana.editorReferencia().texto().isBlank());
         ventana.botonLimpiar().setEnabled(!ocupado);
     }
@@ -49,9 +52,11 @@ public final class ControladorGUI {
         if (ocupado || cerrado) return;
         String texto = ventana.editorFuente().texto();
         if (texto.isBlank()) { ventana.avisar("Ingresa un script antes de analizar."); return; }
+        analisis = null;
+        textoAnalizado = null;
         ventana.vaciarResultados();
         trabajar("Analizando", "Identificando tokens, estructura y tipos…",
-                () -> new CompiladorSQL().analizar(texto), resultado -> {
+                () -> servicio.analizar(texto), resultado -> {
                     aceptarAnalisis(texto, resultado);
                     ventana.marcarEstado(resultado.esValido() ? "Análisis válido" : "Revisar errores",
                             resultado.esValido() ? resultado.sentenciasValidas()
@@ -71,8 +76,8 @@ public final class ControladorGUI {
     public void ejecutar() {
         if (!puedeEjecutar()) return;
         String texto = ventana.editorFuente().texto();
-        trabajar("Ejecutando", "Validando y ejecutando en una base de prueba nueva…",
-                () -> new ServicioEjecucion().ejecutar(texto), informe -> {
+        trabajar("Ejecutando", "Validando y ejecutando en " + servicio.ubicacion(),
+                () -> servicio.ejecutar(texto), informe -> {
                     aceptarAnalisis(texto, informe.analisis());
                     ventana.mostrarEjecucion(informe);
                     ventana.marcarEstado(informe.esExitoso() ? "Ejecución completada" : "Error de ejecución",
@@ -84,13 +89,19 @@ public final class ControladorGUI {
     }
 
     public void comparar() {
-        if (!puedeEjecutar()) return;
+        if (ocupado || cerrado || ventana.editorFuente().texto().isBlank()) return;
+        if (!servicio.esPersistente() && !puedeEjecutar()) return;
         String fuente = ventana.editorFuente().texto();
         String referencia = ventana.editorReferencia().texto();
         if (referencia.isBlank()) { ventana.avisar("Escribe el SQL equivalente en SQL de referencia."); return; }
         trabajar("Comparando", "Ejecutando ambos scripts en bases independientes…",
-                () -> new ServicioEjecucion().comparar(fuente, referencia), comparacion -> {
-                    aceptarAnalisis(fuente, comparacion.compilador().analisis());
+                () -> servicio.comparar(fuente, referencia), comparacion -> {
+                    if (servicio.esPersistente()) {
+                        // La comparación analiza contra bases vacías, no contra los datos guardados.
+                        analisis = null;
+                        textoAnalizado = null;
+                        ventana.mostrarAnalisis(comparacion.compilador().analisis());
+                    } else aceptarAnalisis(fuente, comparacion.compilador().analisis());
                     ventana.mostrarComparacion(comparacion);
                     ventana.marcarEstado(comparacion.coincide() ? "Comparación aprobada" : "Hay diferencias",
                             String.join(" · ", comparacion.detalles()),
@@ -137,7 +148,7 @@ public final class ControladorGUI {
         ventana.marcarEstado("Sin analizar", "Editor y paneles vacíos. Puedes comenzar otro script.", Estilo.MUTED);
     }
 
-    /** No interrumpe JDBC: cada operación cierra su base temporal al terminar. */
+    /** No interrumpe JDBC: cada operación cierra su conexión al terminar. */
     public void cerrar() { cerrado = true; }
     public boolean estaOcupado() { return ocupado; }
     public ResultadoCompilacion ultimoAnalisis() { return analisis; }

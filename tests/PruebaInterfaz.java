@@ -36,7 +36,7 @@ public final class PruebaInterfaz {
         try {
             enUI(() -> {
                 Estilo.instalar();
-                ventana = new VentanaPrincipal();
+                ventana = new VentanaPrincipal(new execution.ServicioEjecucion());
                 ventana.setSize(1360, 900);
                 ventana.addNotify();
                 ventana.validate();
@@ -158,8 +158,70 @@ public final class PruebaInterfaz {
             if (ventana != null) enUI(() -> { ventana.cerrarVentana(); return null; });
         }
         comprobar("arranque completo desde otra carpeta", verificarArranqueDesdeOtraCarpeta());
+        persistenciaEnVentana();
         System.out.println("Pruebas Interfaz: " + total + "   Fallidas: " + fallidas);
         if (fallidas > 0) System.exit(1);
+    }
+
+    private static void persistenciaEnVentana() throws Exception {
+        Path carpeta = Files.createTempDirectory("sqlstudio-gui-");
+        Path archivo = carpeta.resolve("datos/compilador");
+        try {
+            enUI(() -> {
+                ventana = new VentanaPrincipal(new execution.ServicioEjecucion(archivo));
+                ventana.editorFuente().texto("CREAR TABLA alumnos (id ENTERO, nombre TEXTO); "
+                        + "INSERTAR EN alumnos VALORES (1, 'Ana');");
+                ventana.botonAnalizar().doClick();
+                return null;
+            });
+            esperar();
+            comprobar("persistencia: analizar no crea tablas", new execution.ServicioEjecucion(archivo)
+                    .analizar("").catalogo().tamano() == 0);
+            enUI(() -> { ventana.botonEjecutar().doClick(); return null; });
+            esperar();
+            comprobar("persistencia: crear e insertar desde GUI", enUI(() -> ventana.textoEstado().equals("Ejecución completada")));
+            enUI(() -> {
+                ventana.botonLimpiar().doClick();
+                ventana.editorFuente().texto("SELECCIONAR nombre DESDE alumnos;");
+                ventana.botonAnalizar().doClick();
+                return null;
+            });
+            esperar();
+            comprobar("persistencia: limpiar y analizar conservan tabla", enUI(() -> ventana.botonEjecutar().isEnabled()));
+            enUI(() -> { ventana.botonEjecutar().doClick(); return null; });
+            esperar();
+            comprobar("persistencia: GUI recupera fila guardada", enUI(() ->
+                    "Ana".equals(componentes(ventana.panelResultados(), JTable.class).getFirst().getValueAt(0, 0))));
+            enUI(() -> { ventana.cerrarVentana();
+                ventana = new VentanaPrincipal(new execution.ServicioEjecucion(archivo));
+                ventana.editorFuente().texto("SELECCIONAR * DESDE alumnos;");
+                ventana.botonAnalizar().doClick();
+                return null;
+            });
+            esperar();
+            comprobar("persistencia: otra ventana reconoce tablas", enUI(() -> ventana.botonEjecutar().isEnabled()));
+            enUI(() -> {
+                ventana.editorFuente().texto("CREAR TABLA alumnos (id ENTERO);");
+                ventana.editorReferencia().texto("CREATE TABLE alumnos (id INTEGER);");
+                ventana.botonAnalizar().doClick();
+                return null;
+            });
+            esperar();
+            comprobar("persistencia: CREAR repetido bloquea ejecutar", !enUI(() -> ventana.botonEjecutar().isEnabled()));
+            comprobar("persistencia: comparar permite ejemplo sobre base vacía", enUI(() -> ventana.botonComparar().isEnabled()));
+            enUI(() -> { ventana.botonComparar().doClick(); return null; });
+            esperar();
+            comprobar("persistencia: comparación independiente aprobada", enUI(() -> ventana.textoEstado().equals("Comparación aprobada")));
+            comprobar("persistencia: comparación requiere analizar antes de ejecutar", !enUI(() -> ventana.botonEjecutar().isEnabled()));
+            var informe = new execution.ServicioEjecucion(archivo).ejecutar("SELECCIONAR nombre DESDE alumnos;");
+            comprobar("persistencia: comparación no modifica fila real", informe.esExitoso()
+                    && informe.resultados().getFirst().filas().equals(List.of(List.of("Ana"))));
+        } finally {
+            if (ventana != null) enUI(() -> { ventana.cerrarVentana(); return null; });
+            try (var archivos = Files.walk(carpeta)) {
+                for (Path ruta : archivos.sorted(java.util.Comparator.reverseOrder()).toList()) Files.delete(ruta);
+            }
+        }
     }
 
     private static boolean verificarArranqueDesdeOtraCarpeta() throws Exception {

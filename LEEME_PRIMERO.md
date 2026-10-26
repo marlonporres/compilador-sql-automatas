@@ -1,5 +1,15 @@
 # SQL Studio: abrir y comprobar
 
+> **Actualización: almacenamiento permanente.** La interfaz guarda ahora tablas y filas en la carpeta del usuario `SQLStudio/datos`. Analizar y Limpiar conservan los datos. Comparar SQL y las pruebas siguen usando bases temporales. Consulta [persistencia y ejemplo entre sesiones](docs/persistencia.md); las indicaciones anteriores sobre una base nueva en cada ejecución normal ya no aplican.
+
+## En macOS o Linux
+
+Abre una terminal en la carpeta del proyecto y ejecuta **`bash gui.sh`**.
+Requiere un JDK 21 o posterior; no necesitas PowerShell.
+En VS Code, abre **SQLStudio.code-workspace**, instala **Extension Pack for Java**
+y usa **SQL Studio - Interfaz grafica → F5**. La compilación detecta el sistema.
+Para comprobar sin abrir la ventana: **`bash gui.sh demo`**.
+
 ## Para usar la aplicación
 
 **Aplicación lista, sin compilar ni instalar Java:** abre

@@ -30,7 +30,7 @@ jobs:
       - name: Probar lexico, sintaxis, semantica, SQL y paneles
         shell: bash
         run: |
-          for suite in symbol_table.PruebaTablaSimbolos PruebaFase1 PruebaParserDDL PruebaFase2 PruebaAnalizadorDML PruebaSemanticaDDL PruebaSemanticaDML PruebaDelimitadores PruebaEjecucionSQL PruebaPanelesGUI; do
+          for suite in symbol_table.PruebaTablaSimbolos PruebaFase1 PruebaParserDDL PruebaFase2 PruebaAnalizadorDML PruebaSemanticaDDL PruebaSemanticaDML PruebaDelimitadores PruebaEjecucionSQL PruebaPanelesGUI PruebaIntegrante2 PruebaPersistencia; do
             java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp 'out:lib/*' "$suite"
           done
       - name: Probar ventana y botones en escritorio virtual

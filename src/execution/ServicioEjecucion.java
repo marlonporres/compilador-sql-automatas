@@ -1,6 +1,7 @@
 package execution;
 
 import java.math.BigDecimal;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -20,22 +21,56 @@ import compiler.CompiladorSQL;
 import compiler.ResultadoCompilacion;
 import parser.SentenciaSQL;
 
-/** Ejecuta únicamente árboles válidos en una base nueva, privada y temporal. */
+/** Ejecuta contra almacenamiento local o bases temporales para pruebas y comparación. */
 public final class ServicioEjecucion {
     private record Estado(Map<String, List<String>> esquema,
             Map<String, Map<List<Object>, Long>> datos) { }
     private record Ejecucion(InformeEjecucion informe, Estado estado) { }
     private record Referencia(List<ResultadoEjecucion> resultados, Estado estado) { }
 
-    public InformeEjecucion ejecutar(String fuente) { return ejecutarCompleto(fuente).informe(); }
+    private final Path archivo;
 
-    private Ejecucion ejecutarCompleto(String fuente) {
+    /** Las pruebas y la CLI conservan sus bases temporales independientes. */
+    public ServicioEjecucion() { archivo = null; }
+
+    public ServicioEjecucion(Path archivo) {
+        this.archivo = java.util.Objects.requireNonNull(archivo).toAbsolutePath().normalize();
+    }
+
+    public static ServicioEjecucion persistente() {
+        return new ServicioEjecucion(BasePersistente.rutaPredeterminada());
+    }
+
+    public boolean esPersistente() { return archivo != null; }
+    public String ubicacion() { return esPersistente() ? archivo + ".mv.db" : "Base temporal de demostración"; }
+
+    public ResultadoCompilacion analizar(String fuente) {
+        if (!esPersistente()) return new CompiladorSQL().analizar(fuente == null ? "" : fuente);
+        try (Connection conexion = BasePersistente.abrir(archivo)) {
+            return analizar(fuente, conexion, true);
+        } catch (SQLException e) {
+            throw new IllegalStateException("No se pudo leer la base guardada: " + e.getMessage(), e);
+        }
+    }
+
+    private static ResultadoCompilacion analizar(String fuente, Connection conexion, boolean persistente)
+            throws SQLException {
+        String texto = fuente == null ? "" : fuente;
+        return persistente ? new CompiladorSQL().analizar(texto, BasePersistente.leerCatalogo(conexion))
+                : new CompiladorSQL().analizar(texto);
+    }
+
+    public InformeEjecucion ejecutar(String fuente) { return ejecutarCompleto(fuente, esPersistente()).informe(); }
+
+    private Ejecucion ejecutarCompleto(String fuente, boolean persistente) {
         long inicio = System.nanoTime();
-        ResultadoCompilacion analisis = new CompiladorSQL().analizar(fuente == null ? "" : fuente);
+        ResultadoCompilacion analisis = null;
         List<ResultadoEjecucion> resultados = new ArrayList<>();
         Estado estado = null;
-        if (analisis.esValido() && !analisis.sentencias().isEmpty()) {
-            try (Connection conexion = abrirBase()) {
+        try (Connection conexion = persistente ? BasePersistente.abrir(archivo) : abrirBase()) {
+            // Revalidar desde el esquema real evita ejecutar un análisis obsoleto.
+            analisis = analizar(fuente, conexion, persistente);
+            if (analisis.esValido() && !analisis.sentencias().isEmpty()) {
                 int numero = 0;
                 for (SentenciaSQL sentencia : analisis.sentencias()) {
                     numero++;
@@ -51,17 +86,18 @@ public final class ServicioEjecucion {
                     resultados.add(resultado);
                     if (!resultado.esExitoso()) break;
                 }
-                if (resultados.stream().allMatch(ResultadoEjecucion::esExitoso)) estado = estado(conexion);
-            } catch (SQLException | IllegalArgumentException e) {
-                resultados.add(fallo(resultados.size() + 1, "EJECUCIÓN", 1, 1, "", e));
+                if (!persistente && resultados.stream().allMatch(ResultadoEjecucion::esExitoso)) estado = estado(conexion);
             }
+        } catch (SQLException | IllegalArgumentException e) {
+            if (analisis == null) analisis = new CompiladorSQL().analizar(fuente == null ? "" : fuente);
+            resultados.add(fallo(resultados.size() + 1, "EJECUCIÓN", 1, 1, "", e));
         }
         return new Ejecucion(new InformeEjecucion(analisis, resultados,
                 (System.nanoTime() - inicio) / 1_000_000), estado);
     }
 
     public ResultadoComparacion comparar(String fuente, String sqlReferencia) {
-        Ejecucion propio = ejecutarCompleto(fuente);
+        Ejecucion propio = ejecutarCompleto(fuente, false);
         List<String> detalles = new ArrayList<>();
         if (!propio.informe().esExitoso()) {
             detalles.add("El código en español debe analizarse y ejecutarse sin errores antes de comparar.");
