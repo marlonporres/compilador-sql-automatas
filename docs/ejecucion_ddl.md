@@ -11,6 +11,8 @@ deja el `CompiladorSQL` de las fases 1 y 2 y las ejecuta de verdad en una base H
 - Devuelve cada resultado como un `ResultadoEjecucion` con el SQL generado, la
   linea y columna de la sentencia y el error si H2 la rechazo. La ventana recibe
   datos, no texto impreso.
+- Conecta `ServicioEjecucion`, que es lo que llama la ventana al pulsar
+  Ejecutar, con el EjecutorDDL y con el EjecutorDML de la Persona 4.
 
 No revisa sintaxis ni semantica, eso ya lo hizo el compilador. Solo se le deben
 pasar sentencias de un analisis sin errores.
@@ -21,7 +23,8 @@ pasar sentencias de un analisis sin errores.
 |---|---|
 | `src/execution/ConexionSQL.java` | Abre la base H2 en memoria y fija la version del controlador |
 | `src/execution/EjecutorDDL.java` | Ejecuta una `SentenciaDDL` sobre la conexion que le pasan |
-| `tests/PruebaEjecutorDDL.java` | Pruebas (40) |
+| `src/execution/ServicioEjecucion.java` | Ya estaba, le agregue `ejecutarSentencias(List<SentenciaSQL>)` y que mande cada sentencia a su ejecutor |
+| `tests/PruebaEjecutorDDL.java` | Pruebas (44) |
 
 `TraductorSQL` y `ResultadoEjecucion` ya estaban en main, los uso tal cual.
 
@@ -67,33 +70,41 @@ Los DDL no llevan valores, por eso se ejecutan con un `Statement` normal.
 Puede pasar que el compilador acepte una sentencia y la base no. Por ejemplo un
 CREAR de una tabla que ya existe en la base, porque cada analisis empieza con el
 catalogo vacio. En ese caso no se lanza la excepcion: se devuelve un
-`ResultadoEjecucion` con `EXEC-DDL-001: <mensaje de H2>`, la linea y columna de
-la sentencia y el SQL que fallo. Lo mismo si la conexion se cayo.
+`ResultadoEjecucion` con `EXEC-001: <mensaje de H2>`, la linea y columna de
+la sentencia y el SQL que fallo. Lo mismo si la conexion se cayo. El codigo
+`EXEC-001` es el que ya usaba `ServicioEjecucion`, lo deje igual para no romper
+las pruebas ni lo que muestra la ventana.
 
 ## 4. Como se usa
 
+El documento de la fase 3 pide `ServicioEjecucion.ejecutar(List<SentenciaSQL>)`.
+Lo deje como `ejecutarSentencias(List<SentenciaSQL>)` porque ya existe
+`ejecutar(String)` y con los dos una llamada `ejecutar(null)` no compila (pasaba
+en `PruebaEjecucionSQL`). Hace lo mismo que pide el contrato:
+
 ```java
-try (Connection conexion = ConexionSQL.abrir()) {
-    int numero = 0;
-    for (SentenciaSQL s : resultado.sentencias()) {
-        numero++;
-        ResultadoEjecucion r;
-        if (s instanceof SentenciaDDL ddl) {
-            r = new EjecutorDDL().ejecutar(conexion, numero, ddl);
-        } else {
-            r = new EjecutorDML().ejecutar(conexion, numero, (SentenciaDML) s);
-        }
-        resultados.add(r);
-        if (!r.esExitoso()) break;   //se para en la primera que falla
-    }
+ResultadoCompilacion resultado = new CompiladorSQL().analizar(texto);
+if (resultado.esValido()) {
+    List<ResultadoEjecucion> resultados = new ServicioEjecucion().ejecutarSentencias(resultado.sentencias());
 }
 ```
 
-Hoy `ServicioEjecucion` (el que usa la ventana) todavia ejecuta todo con su
-propio metodo. La prueba revisa que mi ejecutor arma el mismo SQL DDL que el
-servicio para `demo_fase3.sql`, asi que se puede cambiar el servicio para que
-use `ConexionSQL`, `EjecutorDDL` y `EjecutorDML` sin que cambie lo que se ve.
-Ese cambio lo acordamos en el equipo antes de hacerlo.
+Por dentro abre una sola conexion con `ConexionSQL.abrir()` (o la base guardada
+de `BasePersistente` si el servicio es persistente) y recorre las sentencias:
+
+```java
+if (sentencia instanceof SentenciaDDL ddl) {
+    resultado = new EjecutorDDL().ejecutar(conexion, numero, ddl);
+} else if (sentencia instanceof SentenciaDML dml) {
+    resultado = new EjecutorDML().ejecutar(conexion, numero, dml);
+}
+resultados.add(resultado);
+if (!resultado.esExitoso()) break;   //se para en la primera que falla
+```
+
+El `ejecutar(String)` que llama la ventana sigue igual por fuera: primero vuelve
+a analizar el texto y despues usa ese mismo recorrido. Asi al pulsar Ejecutar
+el DDL pasa por mi ejecutor y el DML por el de la Persona 4.
 
 ## 5. Pruebas
 
@@ -114,11 +125,14 @@ Que se prueba:
 - RENOMBRAR conserva las filas y TRUNCAR las borra pero deja la tabla
 - un error de H2 vuelve con su codigo, linea, columna y SQL, sin caerse
 - `tests/demo_fase3.sql` corre completo junto con el DML de la Persona 4
+- `ServicioEjecucion.ejecutarSentencias(List<SentenciaSQL>)` corre la demo y se detiene
+  en la primera sentencia que falla
 
 ## 6. Explicacion para la exposicion
 
-Mi parte es la que ejecuta de verdad las sentencias de definicion. Cuando el
-compilador dice que el script no tiene errores, se abre una sola conexion a una
+Mi parte es la que ejecuta de verdad las sentencias de definicion. Cuando se
+pulsa Ejecutar y el compilador dice que el script no tiene errores, el
+ServicioEjecucion abre una sola conexion a una
 base H2 nueva y cada sentencia DDL pasa por el EjecutorDDL, que la traduce a SQL
 y la ejecuta. Con la misma conexion la Persona 4 corre el DML, por eso las
 tablas que creo ya estan cuando se insertan los datos. Si la base rechaza algo

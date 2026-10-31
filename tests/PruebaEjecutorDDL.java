@@ -49,6 +49,7 @@ public class PruebaEjecutorDDL {
         eliminarTabla();
         errorDeLaBase();
         demoFase3();
+        servicio();
 
         System.out.println();
         System.out.println("Pruebas: " + total + "   Fallidas: " + fallidas);
@@ -183,7 +184,7 @@ public class PruebaEjecutorDDL {
         }
         ResultadoEjecucion repetida = ejecutar(c, 1, s.get(0));
         probar("si H2 falla no sale exitoso", !repetida.esExitoso());
-        probar("el error lleva su codigo", repetida.error().startsWith("EXEC-DDL-001"));
+        probar("el error lleva su codigo", repetida.error().startsWith("EXEC-001"));
         probar("el error dice la linea y columna", repetida.linea() == 3 && repetida.columna() == 4);
         probar("se guarda el SQL que fallo", repetida.sql().startsWith("CREATE TABLE"));
 
@@ -216,15 +217,36 @@ public class PruebaEjecutorDDL {
             probar("al final solo queda la tabla clientes", tablas(c).equals(List.of("clientes")));
         }
 
-        //el ServicioEjecucion que ya esta en main debe armar el mismo SQL que mi ejecutor
+        //lo que usa la ventana (ServicioEjecucion con el texto) debe dar el mismo SQL que llamar al ejecutor directo
         InformeEjecucion informe = new ServicioEjecucion().ejecutar(texto);
-        boolean igual = informe.resultados().size() == resultados.size();
+        boolean igual = informe.esExitoso() && informe.resultados().size() == resultados.size();
         for (int i = 0; igual && i < resultados.size(); i++) {
             if (s.get(i) instanceof SentenciaDDL) {
                 igual = informe.resultados().get(i).sql().equals(resultados.get(i).sql());
             }
         }
-        probar("mismo SQL DDL que el ServicioEjecucion actual", igual);
+        probar("la ventana da el mismo SQL DDL que el ejecutor directo", igual);
+    }
+
+    private static void servicio() throws Exception {
+        //el contrato del documento: ServicioEjecucion.ejecutarSentencias(List<SentenciaSQL>)
+        List<SentenciaSQL> demo = analizar(Files.readString(Path.of("tests", "demo_fase3.sql")));
+        List<ResultadoEjecucion> resultados = new ServicioEjecucion().ejecutarSentencias(demo);
+        probar("el servicio corre la demo con una sola conexion", resultados.size() == demo.size()
+                && resultados.stream().allMatch(ResultadoEjecucion::esExitoso));
+        probar("el servicio numera las sentencias en orden",
+                resultados.get(0).numero() == 1 && resultados.getLast().numero() == demo.size());
+
+        //dos CREAR de la misma tabla: el segundo falla en H2 y ya no se sigue con el tercero
+        List<SentenciaSQL> repetidas = new ArrayList<>();
+        repetidas.addAll(analizar("CREAR TABLA a (id ENTERO);"));
+        repetidas.addAll(analizar("\nCREAR TABLA a (id ENTERO);"));
+        repetidas.addAll(analizar("CREAR TABLA b (id ENTERO);"));
+        List<ResultadoEjecucion> r = new ServicioEjecucion().ejecutarSentencias(repetidas);
+        probar("el servicio se detiene en la primera que falla", r.size() == 2
+                && r.get(0).esExitoso() && !r.get(1).esExitoso());
+        probar("y dice en que linea fallo", r.size() == 2 && r.get(1).linea() == 2
+                && r.get(1).error().startsWith("EXEC-001"));
     }
 
     //---- ayudas ----
