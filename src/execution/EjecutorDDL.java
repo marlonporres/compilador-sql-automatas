@@ -37,9 +37,10 @@ public class EjecutorDDL {
         } catch (SQLException | IllegalArgumentException e) {
             //no lanzo la excepcion, la devuelvo con la linea y columna de la sentencia
             //para que la ventana pueda decir donde se detuvo
+            //el codigo EXEC-001 es el mismo que ya usaba ServicioEjecucion para los errores de H2
             String mensaje = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             return new ResultadoEjecucion(numero, comando, sentencia.getLinea(), sentencia.getColumna(),
-                    sql, List.of(), List.of(), 0, "EXEC-DDL-001: " + mensaje);
+                    sql, List.of(), List.of(), 0, "EXEC-001: " + mensaje);
         }
     }
 }

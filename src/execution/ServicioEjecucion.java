@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -16,9 +15,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import compiler.CompiladorSQL;
 import compiler.ResultadoCompilacion;
+import parser.SentenciaDDL;
+import parser.SentenciaDML;
 import parser.SentenciaSQL;
 
 /** Ejecuta contra almacenamiento local o bases temporales para pruebas y comparación. */
@@ -62,30 +62,49 @@ public final class ServicioEjecucion {
 
     public InformeEjecucion ejecutar(String fuente) { return ejecutarCompleto(fuente, esPersistente()).informe(); }
 
+    //contrato de la fase 3: recibe sentencias que ya pasaron por el compilador sin errores,
+    //abre una sola conexion para todo el script y las ejecuta en orden
+    //no se llama ejecutar(List) porque ejecutar(null) quedaria ambiguo con ejecutar(String)
+    public List<ResultadoEjecucion> ejecutarSentencias(List<SentenciaSQL> sentencias) {
+        try (Connection conexion = esPersistente() ? BasePersistente.abrir(archivo) : ConexionSQL.abrir()) {
+            return ejecutar(conexion, sentencias);
+        } catch (SQLException e) {
+            return List.of(fallo(1, "EJECUCIÓN", 1, 1, "", e));
+        }
+    }
+
+    //cada sentencia va a su ejecutor, DDL al de la Persona 3 y DML al de la Persona 4,
+    //y se detiene en la primera que falle para no seguir con una base a medias
+    private static List<ResultadoEjecucion> ejecutar(Connection conexion, List<SentenciaSQL> sentencias) {
+        List<ResultadoEjecucion> resultados = new ArrayList<>();
+        int numero = 0;
+        for (SentenciaSQL sentencia : sentencias) {
+            numero++;
+            ResultadoEjecucion resultado;
+            if (sentencia instanceof SentenciaDDL ddl) {
+                resultado = new EjecutorDDL().ejecutar(conexion, numero, ddl);
+            } else if (sentencia instanceof SentenciaDML dml) {
+                resultado = new EjecutorDML().ejecutar(conexion, numero, dml);
+            } else {
+                resultado = fallo(numero, "EJECUCIÓN", sentencia.getLinea(), sentencia.getColumna(), "",
+                        new IllegalArgumentException("Sentencia no soportada"));
+            }
+            resultados.add(resultado);
+            if (!resultado.esExitoso()) break;
+        }
+        return resultados;
+    }
+
     private Ejecucion ejecutarCompleto(String fuente, boolean persistente) {
         long inicio = System.nanoTime();
         ResultadoCompilacion analisis = null;
         List<ResultadoEjecucion> resultados = new ArrayList<>();
         Estado estado = null;
-        try (Connection conexion = persistente ? BasePersistente.abrir(archivo) : abrirBase()) {
+        try (Connection conexion = persistente ? BasePersistente.abrir(archivo) : ConexionSQL.abrir()) {
             // Revalidar desde el esquema real evita ejecutar un análisis obsoleto.
             analisis = analizar(fuente, conexion, persistente);
             if (analisis.esValido() && !analisis.sentencias().isEmpty()) {
-                int numero = 0;
-                for (SentenciaSQL sentencia : analisis.sentencias()) {
-                    numero++;
-                    ResultadoEjecucion resultado;
-                    try {
-                        TraductorSQL.Plan plan = new TraductorSQL().traducir(sentencia);
-                        resultado = ejecutarSentencia(conexion, numero,
-                                plan.comando(), sentencia.getLinea(), sentencia.getColumna(),
-                                plan.sql(), plan.parametros());
-                    } catch (IllegalArgumentException e) {
-                        resultado = fallo(numero, "TRADUCCIÓN", sentencia.getLinea(), sentencia.getColumna(), "", e);
-                    }
-                    resultados.add(resultado);
-                    if (!resultado.esExitoso()) break;
-                }
+                resultados.addAll(ejecutar(conexion, analisis.sentencias()));
                 if (!persistente && resultados.stream().allMatch(ResultadoEjecucion::esExitoso)) estado = estado(conexion);
             }
         } catch (SQLException | IllegalArgumentException e) {
@@ -141,11 +160,6 @@ public final class ServicioEjecucion {
         if (coincide) detalles.add("Coinciden las consultas, sus filas y el esquema y los datos finales."
                 + " Se ignora el orden de las filas y se conservan sus repeticiones.");
         return new ResultadoComparacion(coincide, detalles, propio.informe(), referencia.resultados());
-    }
-
-    private static Connection abrirBase() throws SQLException {
-        return DriverManager.getConnection("jdbc:h2:mem:fase3_" + UUID.randomUUID()
-                + ";DB_CLOSE_DELAY=0");
     }
 
     private static ResultadoEjecucion ejecutarSentencia(Connection conexion, int numero,
@@ -251,7 +265,7 @@ public final class ServicioEjecucion {
             List<ScriptReferencia.Fragmento> sentencias = ScriptReferencia.separar(fuente);
             for (ScriptReferencia.Fragmento sentencia : sentencias) ScriptReferencia.validar(sentencia.sql());
             if (sentencias.isEmpty()) return new Referencia(List.of(), null);
-            try (Connection conexion = abrirBase()) {
+            try (Connection conexion = ConexionSQL.abrir()) {
                 int numero = 0;
                 for (ScriptReferencia.Fragmento sentencia : sentencias) {
                     ResultadoEjecucion resultado = ejecutarSentencia(conexion, ++numero, "SQL DE REFERENCIA",
